@@ -1,0 +1,15 @@
+# NanOS port manifest for vim (fork of vim/vim). Built by nanos-sdk's `nanos-port`.
+name = "vim"
+source = "dir:."                       # the fork itself holds the sources
+build = "autotools"
+configure = [
+  "--build=x86_64-pc-linux-gnu",
+  "--with-features=normal",
+  "--disable-gui", "--without-x", "--enable-gui=no",
+  "--disable-nls", "--disable-channel", "--disable-netbeans",
+  "--with-tlib=tinfo",                 # link the ncurses terminfo library (ported separately)
+]
+binary = "src/vim"
+needs = ["libc.ndl"]
+install = "/apps/vim"
+data = ["runtime/ -> /apps/vim/runtime"]
