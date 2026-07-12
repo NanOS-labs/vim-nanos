@@ -1,15 +1,35 @@
-# NanOS port manifest for vim (fork of vim/vim). Built by nanos-sdk's `nanos-port`.
 name = "vim"
-source = "dir:."                       # the fork itself holds the sources
+# Vim (the editor) — unmodified upstream, built for NanOS via the nanos-port driver. This is an
+# x86_64-ONLY port manifest: the NanOS `make vim` i686 branch copies the hand-built 32-bit .nxe
+# and never invokes nanos-port, so everything here targets x86_64-nanos.
+#
+# Terminal stack: vim links the low-level terminfo library libtinfo.a (--with-tlib=tinfo), which
+# the ncurses port (`make ARCH=x86_64 ncurses`) installed into the x86_64-nanos sysroot together
+# with curses.h/term.h. libtinfo has xterm-256color compiled in as a fallback, and the disk image
+# also ships a (setaf/setab-patched) xterm-256color terminfo DB under /nanos/share/terminfo.
+#
+# GUI/X/NLS/channel/netbeans are all disabled (NanOS has no X, no NLS catalogs, no sockets-based
+# channels for vim). --with-features=normal is the same feature set the i686 vim was built with.
+source = "dir:../vim"
 build = "autotools"
 configure = [
-  "--build=x86_64-pc-linux-gnu",
+  "--build=x86_64-pc-linux-gnu",   # the amd64 nanos-sdk-dev container is the build host (cross build).
   "--with-features=normal",
-  "--disable-gui", "--without-x", "--enable-gui=no",
-  "--disable-nls", "--disable-channel", "--disable-netbeans",
-  "--with-tlib=tinfo",                 # link the ncurses terminfo library (ported separately)
+  "--disable-gui",
+  "--enable-gui=no",
+  "--without-x",
+  "--disable-nls",
+  "--disable-channel",
+  "--disable-netbeans",
+  "--with-tlib=tinfo",             # link libtinfo.a from the x86_64-nanos sysroot (the ncurses port).
 ]
-binary = "src/vim"
+# NOTE: the cross-compile autoconf cache is NOT supplied here. vim's src/configure hardcodes
+# `--cache-file=auto/config.cache` (appended AFTER the driver's own --cache-file, last-wins), so the
+# nanos-port nxport.cache (this `cache` array + the base config.cache) is ignored — vim reads ONLY
+# src/auto/config.cache. That file in the source tree is the committed i686 vim cross-cache (every
+# vim_cv_*/vi_cv_*/cf_cv_* AC_RUN answer + the header/func probes). hooks/pre_configure.sh REUSES it
+# verbatim, LP64-adjusted (long/pointer/size_t=8, uname_m=x86_64), which is why nothing is listed here.
+cache = []
 needs = ["libc.ndl"]
+binary = "src/vim"
 install = "/apps/vim"
-data = ["runtime/ -> /apps/vim/runtime"]
