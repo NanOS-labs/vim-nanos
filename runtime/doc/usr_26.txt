@@ -1,8 +1,6 @@
-*usr_26.txt*	For Vim version 9.2.  Last change: 2026 Feb 14
+*usr_26.txt*	For Vim version 9.1.  Last change: 2006 Apr 24
 
-
-		     VIM USER MANUAL	by Bram Moolenaar
-
+		     VIM USER MANUAL - by Bram Moolenaar
 
 				  Repeating
 

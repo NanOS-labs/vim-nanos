@@ -2738,8 +2738,8 @@ msgstr " Complètement défini par l'utilisateur (^U^N^P)"
 msgid " Omni completion (^O^N^P)"
 msgstr " Complètement selon le type de fichier (Omni) (^O^N^P)"
 
-msgid " Spelling suggestion (^S^N^P)"
-msgstr " Suggestion d'orthographe (^S^N^P)"
+msgid " Spelling suggestion (s^N^P)"
+msgstr " Suggestion d'orthographe (s^N^P)"
 
 msgid " Keyword Local completion (^N^P)"
 msgstr " Complètement local de mot-clé (^N/^P)"

@@ -1,9 +1,6 @@
 " Vim compiler file
 " Compiler: Zig Compiler
-" Upstream: https://codeberg.org/ziglang/zig.vim
-" Last Change:
-" 2026 May 12 by the Vim project (set errormformat)
-" 2026 May 24 by the Vim project (do not escape vars for makeprg)
+" Upstream: https://github.com/ziglang/zig.vim
 
 if exists("current_compiler")
     finish
@@ -13,30 +10,18 @@ let current_compiler = "zig"
 let s:save_cpo = &cpo
 set cpo&vim
 
+if exists(":CompilerSet") != 2
+    command -nargs=* CompilerSet setlocal <args>
+endif
+
 " a subcommand must be provided for the this compiler (test, build-exe, etc)
-CompilerSet makeprg=zig\ $*\ %:S
+if has('patch-7.4.191')
+    CompilerSet makeprg=zig\ \$*\ \%:S
+else
+    CompilerSet makeprg=zig\ \$*\ \"%\"
+endif
 
-CompilerSet errorformat=
-            \%-G,
-            \%-G\ %#+-\ %.%#,
-            \%-Ginstall,
-            \%-Ginstall\ transitive\ failure,
-            \%-Grun,
-            \%-Grun\ transitive\ failure,
-            \%-Gtest,
-            \%-Gtest\ transitive\ failure,
-            \%-Gfailed\ command:\ %.%#,
-            \%-Gerror:\ %*\\d\ compilation\ errors,
-            \%-GBuild\ Summary:\ %.%#,
-            \%-Gerror:\ the\ following\ build\ command\ failed\ with\ exit\ code\ %*\\d:,
-            \%-G.zig-cache%.%#,
-            \%E%f:%l:%c:\ error:\ %m,
-            \%I%f:%l:%c:\ note:\ %m
-
-" zig has no warnings, but zig cc and zig c++ do
-CompilerSet errorformat+=
-            \%W%f:%l:%c:\ warning:\ %m,
-            \%-G%*\\d\ warnings\ generated.
+" TODO: improve errorformat as needed.
 
 let &cpo = s:save_cpo
 unlet s:save_cpo

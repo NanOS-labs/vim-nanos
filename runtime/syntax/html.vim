@@ -4,8 +4,6 @@
 " Previous Maintainers: Jorge Maldonado Ventura <jorgesumle@freakspot.net>
 "			Claudio Fleiner <claudio@fleiner.com>
 " Last Change:		2023 Nov 28
-" 2024 Jul 30 by Vim Project: increase syn-sync-minlines to 250
-" 2025 May 10 by Vim Project: update comment
 
 " See :help html.vim for some comments and a description of the options
 
@@ -193,7 +191,7 @@ syn keyword htmlArg contained step title translate typemustmatch
 syn match   htmlArg contained "\<data-\h\%(\w\|[-.]\)*\%(\_s*=\)\@="
 
 " special characters
-syn match htmlSpecialChar "&#\=[0-9A-Za-z]\{1,32};"
+syn match htmlSpecialChar "&#\=[0-9A-Za-z]\{1,8};"
 
 " Comments (the real ones or the old netscape ones)
 if exists("html_wrong_comments")
@@ -322,12 +320,11 @@ if main_syntax == "html"
   syn sync match htmlHighlight groupthere NONE "<[/a-zA-Z]"
   syn sync match htmlHighlight groupthere javaScript "<script"
   syn sync match htmlHighlightSkip "^.*['\"].*$"
-  exe "syn sync minlines=" . get(g:, 'html_minlines', 250)
+  syn sync minlines=10
 endif
 
 " Folding
-" (Originally written by Ingo Karkat and Marcus Zanona; see
-" https://vi.stackexchange.com/questions/2306/html-syntax-folding-in-vim .)
+" Originally by Ingo Karkat and Marcus Zanona
 if get(g:, "html_syntax_folding", 0)
   syn region htmlFold start="<\z(\<\%(area\|base\|br\|col\|command\|embed\|hr\|img\|input\|keygen\|link\|meta\|param\|source\|track\|wbr\>\)\@![a-z-]\+\>\)\%(\_s*\_[^/]\?>\|\_s\_[^>]*\_[^>/]>\)" end="</\z1\_s*>" fold transparent keepend extend containedin=htmlHead,htmlH\d
   " fold comments (the real ones and the old Netscape ones)

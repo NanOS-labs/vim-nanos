@@ -12,7 +12,7 @@
 
 #include "vim.h"
 
-#if defined(FEAT_JOB_CHANNEL)
+#if defined(FEAT_JOB_CHANNEL) || defined(PROTO)
 
 #define FOR_ALL_JOBS(job) \
     for ((job) = first_job; (job) != NULL; (job) = (job)->jv_next)
@@ -27,16 +27,12 @@ handle_mode(typval_T *item, jobopt_T *opt, ch_mode_T *modep, int jo)
 	*modep = CH_MODE_NL;
     else if (STRCMP(val, "raw") == 0)
 	*modep = CH_MODE_RAW;
-    else if (STRCMP(val, "blob") == 0)
-	*modep = CH_MODE_BLOB;
     else if (STRCMP(val, "js") == 0)
 	*modep = CH_MODE_JS;
     else if (STRCMP(val, "json") == 0)
 	*modep = CH_MODE_JSON;
     else if (STRCMP(val, "lsp") == 0)
 	*modep = CH_MODE_LSP;
-    else if (STRCMP(val, "dap") == 0)
-	*modep = CH_MODE_DAP;
     else
     {
 	semsg(_(e_invalid_argument_str), val);
@@ -842,7 +838,7 @@ free_jobs_to_free_later(void)
     }
 }
 
-#if defined(EXITFREE)
+#if defined(EXITFREE) || defined(PROTO)
     void
 job_free_all(void)
 {
@@ -895,7 +891,7 @@ job_still_useful(job_T *job)
     return job_need_end_check(job) || job_channel_still_useful(job);
 }
 
-#if defined(GUI_MAY_FORK) || defined(GUI_MAY_SPAWN)
+#if defined(GUI_MAY_FORK) || defined(GUI_MAY_SPAWN) || defined(PROTO)
 /*
  * Return TRUE when there is any running job that we care about.
  */
@@ -919,7 +915,7 @@ job_any_running(void)
 # define USE_ARGV
 #endif
 
-#if !defined(USE_ARGV)
+#if !defined(USE_ARGV) || defined(PROTO)
 /*
  * Escape one argument for an external command.
  * Returns the escaped string in allocated memory.  NULL when out of memory.
@@ -1091,7 +1087,7 @@ set_ref_in_job(int copyID)
 	{
 	    tv.v_type = VAR_JOB;
 	    tv.vval.v_job = job;
-	    abort = abort || set_ref_in_item(&tv, copyID, NULL, NULL, NULL);
+	    abort = abort || set_ref_in_item(&tv, copyID, NULL, NULL);
 	}
     return abort;
 }
@@ -1456,7 +1452,7 @@ job_start(
 	for (i = 0; i < argc; ++i)
 	{
 	    if (i > 0)
-		GA_CONCAT_LITERAL(&ga, "  ");
+		ga_concat(&ga, (char_u *)"  ");
 	    ga_concat(&ga, (char_u *)argv[i]);
 	}
 	ga_append(&ga, NUL);
@@ -1701,6 +1697,8 @@ f_prompt_setcallback(typval_T *argvars, typval_T *rettv UNUSED)
 
     free_callback(&buf->b_prompt_callback);
     set_callback(&buf->b_prompt_callback, &callback);
+    if (callback.cb_free_name)
+	vim_free(callback.cb_name);
 }
 
 /*
@@ -1728,6 +1726,8 @@ f_prompt_setinterrupt(typval_T *argvars, typval_T *rettv UNUSED)
 
     free_callback(&buf->b_prompt_interrupt);
     set_callback(&buf->b_prompt_interrupt, &callback);
+    if (callback.cb_free_name)
+	vim_free(callback.cb_name);
 }
 
 
@@ -2019,18 +2019,18 @@ job_to_string_buf(typval_T *varp, char_u *buf)
     status = job->jv_status == JOB_FAILED ? "fail"
 		    : job->jv_status >= JOB_ENDED ? "dead"
 		    : "run";
-#ifdef UNIX
+# ifdef UNIX
     vim_snprintf((char *)buf, NUMBUFLEN,
 		"process %ld %s", (long)job->jv_pid, status);
-#elif defined(MSWIN)
+# elif defined(MSWIN)
     vim_snprintf((char *)buf, NUMBUFLEN,
 		"process %ld %s",
 		(long)job->jv_proc_info.dwProcessId,
 		status);
-#else
+# else
     // fall-back
     vim_snprintf((char *)buf, NUMBUFLEN, "process ? %s", status);
-#endif
+# endif
     return buf;
 }
 

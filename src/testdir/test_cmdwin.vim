@@ -1,6 +1,7 @@
 " Tests for editing the command line.
 
-source util/screendump.vim
+source check.vim
+source screendump.vim
 
 func Test_getcmdwintype()
   call feedkeys("q/:let a = getcmdwintype()\<CR>:q\<CR>", 'x!')
@@ -187,7 +188,7 @@ func Test_cmdwin_tabpage()
   tabclose!
 endfunc
 
-func Test_cmdwin_interrupted_more_prompt()
+func Test_cmdwin_interrupted()
   CheckScreendump
 
   " aborting the :smile output caused the cmdline window to use the current
@@ -467,182 +468,6 @@ func Test_cmdwin_restore_heights()
   call assert_equal(restcmds, winrestcmd())
 
   set cmdheight& showtabline& laststatus&
-endfunc
-
-func Test_cmdwin_temp_curwin()
-  func CheckWraps(expect_wrap)
-    setlocal textwidth=0 wrapmargin=1
-
-    call deletebufline('', 1, '$')
-    let as = repeat('a', winwidth(0) - 2 - &wrapmargin)
-    call setline(1, as .. ' b')
-    normal! gww
-
-    setlocal textwidth& wrapmargin&
-    call assert_equal(a:expect_wrap ? [as, 'b'] : [as .. ' b'], getline(1, '$'))
-  endfunc
-
-  func CheckCmdWin()
-    call assert_equal('command', win_gettype())
-    " textoff and &wrapmargin formatting considers the cmdwin_type char.
-    call assert_equal(1, getwininfo(win_getid())[0].textoff)
-    call CheckWraps(1)
-  endfunc
-
-  func CheckOtherWin()
-    call assert_equal('', win_gettype())
-    call assert_equal(0, getwininfo(win_getid())[0].textoff)
-    call CheckWraps(0)
-  endfunc
-
-  call feedkeys("q::call CheckCmdWin()\<CR>:call win_execute(win_getid(winnr('#')), 'call CheckOtherWin()')\<CR>:q<CR>", 'ntx')
-
-  %bwipe!
-  delfunc CheckWraps
-  delfunc CheckCmdWin
-  delfunc CheckOtherWin
-endfunc
-
-func Test_cmdwin_interrupted()
-  func CheckInterrupted()
-    call feedkeys("q::call assert_equal('', getcmdwintype())\<CR>:call assert_equal('', getcmdtype())\<CR>:q<CR>", 'ntx')
-  endfunc
-
-  augroup CmdWin
-
-  " While opening the cmdwin's split:
-  " Close the cmdwin's window.
-  au WinEnter * ++once quit
-  call CheckInterrupted()
-
-  " Close the old window.
-  au WinEnter * ++once execute winnr('#') 'quit'
-  call CheckInterrupted()
-
-  " Switch back to the old window.
-  au WinEnter * ++once wincmd p
-  call CheckInterrupted()
-
-  " Change the old window's buffer.
-  au WinEnter * ++once call win_execute(win_getid(winnr('#')), 'enew')
-  call CheckInterrupted()
-
-  " Using BufLeave autocmds as cmdwin restrictions do not apply to them when
-  " fired from opening the cmdwin...
-  " After opening the cmdwin's split, while creating the cmdwin's buffer:
-  " Delete the cmdwin's buffer.
-  au BufLeave * ++once bwipe
-  call CheckInterrupted()
-
-  " Close the cmdwin's window.
-  au BufLeave * ++once quit
-  call CheckInterrupted()
-
-  " Close the old window.
-  au BufLeave * ++once execute winnr('#') 'quit'
-  call CheckInterrupted()
-
-  " Switch to a different window.
-  au BufLeave * ++once split
-  call CheckInterrupted()
-
-  " Change the old window's buffer.
-  au BufLeave * ++once call win_execute(win_getid(winnr('#')), 'enew')
-  call CheckInterrupted()
-
-  " However, changing the current buffer is OK and does not interrupt.
-  au BufLeave * ++once edit other
-  call feedkeys("q::let t=getcmdwintype()\<CR>:let b=bufnr()\<CR>:clo<CR>", 'ntx')
-  call assert_equal(':', t)
-  call assert_equal(1, bufloaded('other'))
-  call assert_notequal(b, bufnr('other'))
-
-  augroup END
-
-  " No autocmds should remain, but clear the augroup to be sure.
-  augroup CmdWin
-    au!
-  augroup END
-
-  %bwipe!
-  delfunc CheckInterrupted
-endfunc
-
-func Test_cmdwin_existing_bufname()
-  func CheckName()
-    call assert_equal(1, getbufinfo('')[0].command)
-    call assert_equal(0, getbufinfo('[Command Line]')[0].command)
-    call assert_match('#a\s*"\[Command Line\]"', execute('ls'))
-    call assert_match('%a\s*"\[Command Line\]"', execute('ls'))
-  endfunc
-
-  file [Command Line]
-  call feedkeys("q::call CheckName()\<CR>:q\<CR>", 'ntx')
-  0file
-  delfunc CheckName
-endfunc
-
-func Test_cmdwin_showcmd()
-  CheckScreendump
-
-  let lines =<< trim [SCRIPT]
-    augroup vimHints | au! | augroup END
-    set showcmd
-  [SCRIPT]
-  call writefile(lines, 'XTest_cmdwin_showcmd', 'D')
-  let buf = RunVimInTerminal('-S XTest_cmdwin_showcmd', {'rows': 18})
-
-  for keys in ['q:', ":\<C-F>"]
-    call term_sendkeys(buf, keys)
-    call VerifyScreenDump(buf, 'Test_cmdwin_showcmd_1', {})
-    call term_sendkeys(buf, '"')
-    call WaitForAssert({-> assert_match('^: \+" *$', term_getline(buf, 18))})
-    call term_sendkeys(buf, 'x')
-    call WaitForAssert({-> assert_match('^: \+"x *$', term_getline(buf, 18))})
-    call term_sendkeys(buf, 'y')
-    call WaitForAssert({-> assert_match('^: \+"xy *$', term_getline(buf, 18))})
-    call term_sendkeys(buf, 'y')
-    call WaitForAssert({-> assert_match('^: \+$', term_getline(buf, 18))})
-    call term_sendkeys(buf, "\<C-C>\<C-C>")
-    call VerifyScreenDump(buf, 'Test_cmdwin_showcmd_2', {})
-  endfor
-
-  " clean up
-  call StopVimInTerminal(buf)
-endfunc
-
-func Test_cmdwin_cursor_position()
-  " When the cmdline fills the screen width exactly, pressing CTRL-F to open
-  " the cmdwin should place the cursor on the last character, not past it.
-  let cmd = 'echo "' .. repeat('a', &columns - 8) .. '"'
-  call assert_equal(&columns - 1, len(cmd))
-  let g:cmdwin_col = 0
-  let g:cmdwin_line = ''
-  call feedkeys(':' .. cmd .. "\<C-F>" ..
-        \ ":let g:cmdwin_col = col('.')\<CR>" ..
-        \ ":let g:cmdwin_line = getline('.')\<CR>" ..
-        \ ":q\<CR>", 'x!')
-  call assert_equal(len(cmd), g:cmdwin_col)
-  call assert_equal(cmd, g:cmdwin_line)
-  unlet g:cmdwin_col g:cmdwin_line
-endfunc
-
-func Test_cmdwin_no_prefix_on_wrapped_line()
-  CheckScreendump
-
-  let lines =<< trim END
-    augroup vimHints | au! | augroup END
-  END
-  call writefile(lines, 'Xcmdwin_wrap', 'D')
-
-  let buf = RunVimInTerminal('-S Xcmdwin_wrap', #{rows: 12, cols: 40})
-  let cmd = 'echo "' .. repeat('a', 40 - 8) .. '"XYZ'
-  call term_sendkeys(buf, ':' .. cmd .. "\<C-F>")
-  call TermWait(buf, 100)
-  call VerifyScreenDump(buf, 'Test_cmdwin_wrap_prefix', {})
-
-  call term_sendkeys(buf, ":q\<CR>")
-  call StopVimInTerminal(buf)
 endfunc
 
 " vim: shiftwidth=2 sts=2 expandtab

@@ -1,7 +1,7 @@
 " Menu Translations:    Simplified Chinese
 " Maintainer:           Ada (Haowen) Yu <me@yuhaowen.com>
 " Previous Maintainer:  Shun Bai <baishunde@gmail.com>, Yuheng Xie <elephant@linux.net.cn>
-" Last Change:          2026 Feb 19
+" Last Change:          2022 July 9
 " Generated from menu_zh_cn.utf-8.vim, DO NOT EDIT
 "
 " Generated with the scripts from:
@@ -28,7 +28,7 @@ menutrans &How-to\ Links 如何使用(&H)
 menutrans &Find\.\.\. 查找(&F)\.\.\.
 menutrans &Credits 致谢(&C)
 menutrans Co&pying 版权(&P)
-menutrans &Sponsor 赞助(&S)
+menutrans &Sponsor/Register 赞助/注册(&S)
 menutrans O&rphans 拯救孤儿(&R)
 menutrans &Version 版本(&V)
 menutrans &About 关于(&A)

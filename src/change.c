@@ -61,7 +61,7 @@ change_warning(int col)
 	out_flush();
 	ui_delay(1002L, TRUE); // give the user time to think about it
     }
-    curbuf->b_did_warn = true;
+    curbuf->b_did_warn = TRUE;
     redraw_cmdline = FALSE;	// don't redraw and erase the message
     if (msg_row < Rows - 1)
 	showmode();
@@ -142,95 +142,11 @@ changed_internal(void)
     ml_setflags(curbuf);
     check_status(curbuf);
     redraw_tabline = TRUE;
-#if defined(FEAT_TABPANEL)
-    redraw_tabpanel = TRUE;
-#endif
     need_maketitle = TRUE;	    // set window title later
 }
 
 #ifdef FEAT_EVAL
-// Set when listener callbacks are being invoked.
-static int recursive = FALSE;
-
 static long next_listener_id = 0;
-
-// A flag that is set when any buffer listener housekeeping is required.
-// Currently the only condition is when a listener is marked for removal.
-static bool housekeeping_required;
-
-/*
- * Remove a given listener_T entry from its containing list.
- */
-    static void
-remove_listener_from_list(
-    listener_T **list,
-    listener_T *lnr,
-    listener_T *prev)
-{
-    if (prev != NULL)
-	prev->lr_next = lnr->lr_next;
-    else
-	*list = lnr->lr_next;
-    free_callback(&lnr->lr_callback);
-    vim_free(lnr);
-}
-
-/*
- * Clean up a buffer change listener list.
- *
- * If "all" is TRUE then all entries are removed. Otherwise only those with an ID
- * of zero are removed. If "buf" is non-NULL then the buffer's recorded changes
- * will be discarded in the event that all listeners were removed.
- *
- */
-    static void
-clean_listener_list(buf_T *buf, listener_T **list, bool all)
-{
-    listener_T	*prev;
-    listener_T	*lnr;
-    listener_T	*next;
-
-    prev = NULL;
-    for (lnr = *list; lnr != NULL; lnr = next)
-    {
-	next = lnr->lr_next;
-	if (all || lnr->lr_id == 0)
-	    remove_listener_from_list(list, lnr, prev);
-	else
-	    prev = lnr;
-    }
-
-    // Drop any recorded changes for a buffer with no listeners.
-    if (buf != NULL)
-    {
-	if (*list == NULL && buf->b_recorded_changes != NULL)
-	{
-	    list_unref(buf->b_recorded_changes);
-	    buf->b_recorded_changes = NULL;
-	}
-    }
-}
-
-/*
- * Perform housekeeping tasks for buffer change listeners.
- *
- * This does nothing unless the "housekeeping_required" flag has been set.
- */
-    static void
-perform_listener_housekeeping(void)
-{
-    buf_T	*buf;
-
-    if (housekeeping_required)
-    {
-	FOR_ALL_BUFFERS(buf)
-	{
-	    clean_listener_list(buf, &buf->b_listener, FALSE);
-	    clean_listener_list(NULL, &buf->b_sync_listener, FALSE);
-	}
-	housekeeping_required = FALSE;
-    }
-}
 
 /*
  * Check if the change at "lnum" is above or overlaps with an existing
@@ -243,13 +159,12 @@ check_recorded_changes(
 	linenr_T	lnume,
 	long		xtra)
 {
-    perform_listener_housekeeping();
     if (buf->b_recorded_changes == NULL || xtra == 0)
 	return;
 
     listitem_T *li;
-    linenr_T	prev_lnum;
-    linenr_T	prev_lnume;
+    linenr_T    prev_lnum;
+    linenr_T    prev_lnume;
 
     FOR_ALL_LIST_ITEMS(buf->b_recorded_changes, li)
     {
@@ -270,9 +185,6 @@ check_recorded_changes(
 /*
  * Record a change for listeners added with listener_add().
  * Always for the current buffer.
- *
- * This only deals with listeners that are prepared to accept multiple buffered
- * changes.
  */
     static void
 may_record_change(
@@ -283,7 +195,6 @@ may_record_change(
 {
     dict_T	*dict;
 
-    perform_listener_housekeeping();
     if (curbuf->b_listener == NULL)
 	return;
 
@@ -297,6 +208,7 @@ may_record_change(
 	if (curbuf->b_recorded_changes == NULL)  // out of memory
 	    return;
 	++curbuf->b_recorded_changes->lv_refcount;
+	curbuf->b_recorded_changes->lv_lock = VAR_FIXED;
     }
 
     dict = dict_alloc();
@@ -319,20 +231,8 @@ f_listener_add(typval_T *argvars, typval_T *rettv)
     callback_T	callback;
     listener_T	*lnr;
     buf_T	*buf = curbuf;
-    int		unbuffered = 0;
 
-    if (check_secure())
-	return;
-
-    if (recursive)
-    {
-	emsg(_(e_cannot_add_listener_in_listener_callback));
-	return;
-    }
-
-    if (in_vim9script() && (
-	    check_for_opt_buffer_arg(argvars, 1) == FAIL
-	    || check_for_opt_bool_arg(argvars, 2) == FAIL))
+    if (in_vim9script() && check_for_opt_buffer_arg(argvars, 1) == FAIL)
 	return;
 
     callback = get_callback(&argvars[0]);
@@ -347,8 +247,6 @@ f_listener_add(typval_T *argvars, typval_T *rettv)
 	    free_callback(&callback);
 	    return;
 	}
-	if (argvars[2].v_type != VAR_UNKNOWN)
-	    unbuffered = (int)tv_get_bool(&argvars[2]);
     }
 
     lnr = ALLOC_CLEAR_ONE(listener_T);
@@ -357,25 +255,12 @@ f_listener_add(typval_T *argvars, typval_T *rettv)
 	free_callback(&callback);
 	return;
     }
-
-    // Perform any pending housekeeping and then make sure any buffered change
-    // reports are flushed so that the new listener does not see out of date
-    // changes.
-    perform_listener_housekeeping();
-    invoke_listeners(buf);
-
-    if (unbuffered)
-    {
-	lnr->lr_next = buf->b_sync_listener;
-	buf->b_sync_listener = lnr;
-    }
-    else
-    {
-	lnr->lr_next = buf->b_listener;
-	buf->b_listener = lnr;
-    }
+    lnr->lr_next = buf->b_listener;
+    buf->b_listener = lnr;
 
     set_callback(&lnr->lr_callback, &callback);
+    if (callback.cb_free_name)
+	vim_free(callback.cb_name);
 
     lnr->lr_id = ++next_listener_id;
     rettv->vval.v_number = lnr->lr_id;
@@ -389,12 +274,6 @@ f_listener_flush(typval_T *argvars, typval_T *rettv UNUSED)
 {
     buf_T	*buf = curbuf;
 
-    if (check_secure())
-	return;
-
-    if (recursive)
-	return;
-
     if (in_vim9script() && check_for_opt_buffer_arg(argvars, 0) == FAIL)
 	return;
 
@@ -404,49 +283,32 @@ f_listener_flush(typval_T *argvars, typval_T *rettv UNUSED)
 	if (buf == NULL)
 	    return;
     }
-    perform_listener_housekeeping();
     invoke_listeners(buf);
 }
 
-/*
- * Find the buffer change listener entry for a given unique ID.
- */
-    static listener_T *
-find_listener(
-    int        id,
-    listener_T *list_start,
-    listener_T **prev)
-{
-    listener_T *next;
-    listener_T *lnr;
 
-    *prev = NULL;
-    for (lnr = list_start; lnr != NULL; lnr = next)
-    {
-	next = lnr->lr_next;
-	if (lnr->lr_id == id)
-	    return lnr;
-	*prev = lnr;
-    }
-    return NULL;
+    static void
+remove_listener(buf_T *buf, listener_T *lnr, listener_T *prev)
+{
+    if (prev != NULL)
+	prev->lr_next = lnr->lr_next;
+    else
+	buf->b_listener = lnr->lr_next;
+    free_callback(&lnr->lr_callback);
+    vim_free(lnr);
 }
 
 /*
  * listener_remove() function
- *
- * This simply marks the listener_T entry as unused, by setting its ID to zero.
- * The listener_T entry gets removed later by housekeeping.
  */
     void
 f_listener_remove(typval_T *argvars, typval_T *rettv)
 {
     listener_T	*lnr;
+    listener_T	*next;
     listener_T	*prev;
     int		id;
     buf_T	*buf;
-
-    if (check_secure())
-	return;
 
     if (in_vim9script() && check_for_number_arg(argvars, 0) == FAIL)
 	return;
@@ -454,23 +316,29 @@ f_listener_remove(typval_T *argvars, typval_T *rettv)
     id = tv_get_number(argvars);
     FOR_ALL_BUFFERS(buf)
     {
-	lnr = find_listener(id, buf->b_listener, &prev);
-	if (lnr == NULL)
-	    lnr = find_listener(id, buf->b_sync_listener, &prev);
-	if (lnr != NULL)
+	prev = NULL;
+	for (lnr = buf->b_listener; lnr != NULL; lnr = next)
 	{
-	    // Clear the ID to indicate that the listener is unused flag
-	    // housekeeping.
-	    lnr->lr_id = 0;
-	    housekeeping_required = TRUE;
-	    rettv->vval.v_number = 1;
-	    return;
+	    next = lnr->lr_next;
+	    if (lnr->lr_id == id)
+	    {
+		if (textlock > 0)
+		{
+		    // in invoke_listeners(), clear ID and delete later
+		    lnr->lr_id = 0;
+		    return;
+		}
+		remove_listener(buf, lnr, prev);
+		rettv->vval.v_number = 1;
+		return;
+	    }
+	    prev = lnr;
 	}
     }
 }
 
 /*
- * Called before inserting a line above "lnum"/"lnume" or deleting line "lnum"
+ * Called before inserting a line above "lnum"/"lnum3" or deleting line "lnum"
  * to "lnume".
  */
     void
@@ -480,123 +348,36 @@ may_invoke_listeners(buf_T *buf, linenr_T lnum, linenr_T lnume, int added)
 }
 
 /*
- * Common processing for invoke_listeners and invoke_sync_listeners.
- */
-    static void
-invoke_listener_set(
-    buf_T       *buf,
-    linenr_T	start,
-    linenr_T	end,
-    long	added,
-    list_T      *recorded_changes,
-    listener_T  *listeners)
-{
-    int		save_updating_screen = updating_screen;
-    listener_T	*lnr;
-    typval_T	rettv;
-    typval_T	argv[6];
-    typval_T    val;
-
-    argv[0].v_type = VAR_NUMBER;
-    argv[0].vval.v_number = buf->b_fnum; // a:bufnr
-    argv[1].v_type = VAR_NUMBER;
-    argv[1].vval.v_number = start;
-    argv[2].v_type = VAR_NUMBER;
-    argv[2].vval.v_number = end;
-    argv[3].v_type = VAR_NUMBER;
-    argv[3].vval.v_number = added;
-    argv[4].v_type = VAR_LIST;
-    argv[4].vval.v_list = recorded_changes;
-
-    // Ensure the list of changes is locked to prevent any modifications by
-    // callback code..
-    val.v_type = VAR_LIST;
-    val.v_lock = 0;
-    val.vval.v_list = recorded_changes;
-    item_lock(&val, -1, TRUE, FALSE);
-
-    // Protect against recursive callbacks, lock the buffer against changes and
-    // set the updating_screen flag to prevent channel input processing, which
-    // might also try to update the buffer.
-    recursive = TRUE;
-    ++textlock;
-    updating_screen = TRUE;
-
-    for (lnr = listeners; lnr != NULL; lnr = lnr->lr_next)
-    {
-	call_callback(&lnr->lr_callback, -1, &rettv, 5, argv);
-	clear_tv(&rettv);
-    }
-
-    --textlock;
-    if (save_updating_screen)
-	updating_screen = TRUE;
-    else
-	after_updating_screen(TRUE);
-    recursive = FALSE;
-}
-
-/*
- * Called when any change occurs: invoke listeners added with the "unbuffered"
- * parameter set.
- */
-    static void
-invoke_sync_listeners(
-    buf_T	*buf,
-    linenr_T	start,
-    colnr_T	col,
-    linenr_T	end,
-    long	added)
-{
-    list_T      *recorded_changes;
-    dict_T	*dict;
-
-    if (recursive || curbuf->b_sync_listener == NULL)
-	return;
-
-    // Create a single entry list to store the details of the change (including
-    // the column).
-    recorded_changes = list_alloc();
-    if (recorded_changes == NULL)  // out of memory
-	return;
-
-    ++recorded_changes->lv_refcount;
-
-    dict = dict_alloc();
-    if (dict == NULL)
-    {
-	list_unref(recorded_changes);
-	return;
-    }
-
-    dict_add_number(dict, "lnum", (varnumber_T)start);
-    dict_add_number(dict, "end", (varnumber_T)end);
-    dict_add_number(dict, "added", (varnumber_T)added);
-    dict_add_number(dict, "col", (varnumber_T)col + 1);
-    list_append_dict(recorded_changes, dict);
-
-    invoke_listener_set(
-	buf, start, end, added, recorded_changes, buf->b_sync_listener);
-
-    list_unref(recorded_changes);
-}
-
-/*
  * Called when a sequence of changes is done: invoke listeners added with
  * listener_add().
  */
     void
 invoke_listeners(buf_T *buf)
 {
+    listener_T	*lnr;
+    typval_T	rettv;
+    typval_T	argv[6];
     listitem_T	*li;
     linenr_T	start = MAXLNUM;
     linenr_T	end = 0;
     linenr_T	added = 0;
+    int		save_updating_screen = updating_screen;
+    static int	recursive = FALSE;
+    listener_T	*next;
+    listener_T	*prev;
 
     if (buf->b_recorded_changes == NULL  // nothing changed
-	    || buf->b_listener == NULL	 // no listeners
+	    || buf->b_listener == NULL   // no listeners
 	    || recursive)		 // already busy
 	return;
+    recursive = TRUE;
+
+    // Block messages on channels from being handled, so that they don't make
+    // text changes here.
+    ++updating_screen;
+
+    argv[0].v_type = VAR_NUMBER;
+    argv[0].vval.v_number = buf->b_fnum; // a:bufnr
 
     FOR_ALL_LIST_ITEMS(buf->b_recorded_changes, li)
     {
@@ -610,12 +391,43 @@ invoke_listeners(buf_T *buf)
 	    end = lnum;
 	added += dict_get_number(li->li_tv.vval.v_dict, "added");
     }
+    argv[1].v_type = VAR_NUMBER;
+    argv[1].vval.v_number = start;
+    argv[2].v_type = VAR_NUMBER;
+    argv[2].vval.v_number = end;
+    argv[3].v_type = VAR_NUMBER;
+    argv[3].vval.v_number = added;
 
-    invoke_listener_set(
-	buf, start, end, added, buf->b_recorded_changes, buf->b_listener);
+    argv[4].v_type = VAR_LIST;
+    argv[4].vval.v_list = buf->b_recorded_changes;
+    ++textlock;
 
+    for (lnr = buf->b_listener; lnr != NULL; lnr = lnr->lr_next)
+    {
+	call_callback(&lnr->lr_callback, -1, &rettv, 5, argv);
+	clear_tv(&rettv);
+    }
+
+    // If f_listener_remove() was called may have to remove a listener now.
+    prev = NULL;
+    for (lnr = buf->b_listener; lnr != NULL; lnr = next)
+    {
+	next = lnr->lr_next;
+	if (lnr->lr_id == 0)
+	    remove_listener(buf, lnr, prev);
+	else
+	    prev = lnr;
+    }
+
+    --textlock;
     list_unref(buf->b_recorded_changes);
     buf->b_recorded_changes = NULL;
+
+    if (save_updating_screen)
+	updating_screen = TRUE;
+    else
+	after_updating_screen(TRUE);
+    recursive = FALSE;
 }
 
 /*
@@ -624,10 +436,17 @@ invoke_listeners(buf_T *buf)
     void
 remove_listeners(buf_T *buf)
 {
-    clean_listener_list(buf, &buf->b_listener, TRUE);
-    clean_listener_list(NULL, &buf->b_sync_listener, TRUE);
-}
+    listener_T	*lnr;
+    listener_T	*next;
 
+    for (lnr = buf->b_listener; lnr != NULL; lnr = next)
+    {
+	next = lnr->lr_next;
+	free_callback(&lnr->lr_callback);
+	vim_free(lnr);
+    }
+    buf->b_listener = NULL;
+}
 #endif
 
 /*
@@ -653,20 +472,11 @@ changed_common(
     changed();
 
 #ifdef FEAT_EVAL
-    // Immediately send this change to any listeners that require changes not
-    // to be buffered.
-    invoke_sync_listeners(curbuf, lnum, col, lnume, xtra);
-
-    // If there are any listeners accepting buffered changes then add changes
-    // to the current buffer's list, flushing previous changes first if necessary.
     may_record_change(lnum, col, lnume, xtra);
 #endif
 #ifdef FEAT_DIFF
     if (curwin->w_p_diff && diff_internal())
-    {
 	curtab->tp_diff_update = TRUE;
-	diff_update_line(lnum);
-    }
 #endif
 
     // set the '. mark
@@ -684,7 +494,7 @@ changed_common(
 	    else
 	    {
 		// Don't create a new entry when the line number is the same
-		// as the last one and the column is not too far away.	Avoids
+		// as the last one and the column is not too far away.  Avoids
 		// creating many entries for typing "xxxxx".
 		p = &curbuf->b_changelist[curbuf->b_changelistlen - 1];
 		if (p->lnum != lnum)
@@ -702,7 +512,7 @@ changed_common(
 		// This is the first of a new sequence of undo-able changes
 		// and it's at some distance of the last change.  Use a new
 		// position in the changelist.
-		curbuf->b_new_change = false;
+		curbuf->b_new_change = FALSE;
 
 		if (curbuf->b_changelistlen == JUMPLISTSIZE)
 		{
@@ -749,12 +559,6 @@ changed_common(
 	    if (!redraw_not_allowed && wp->w_redr_type < UPD_VALID)
 		wp->w_redr_type = UPD_VALID;
 
-	    // When inserting/deleting lines and the window has specific lines
-	    // to be redrawn, w_redraw_top and w_redraw_bot may now be invalid,
-	    // so just redraw everything.
-	    if (xtra != 0 && wp->w_redraw_top != 0)
-		redraw_win_later(wp, UPD_NOT_VALID);
-
 	    // Reset "w_skipcol" if the topline length has become smaller to
 	    // such a degree that nothing will be visible anymore, accounting
 	    // for 'smoothscroll' <<< or 'listchars' "precedes" marker.
@@ -762,8 +566,10 @@ changed_common(
 		    && (last < wp->w_topline
 			|| (wp->w_topline >= lnum
 			    && wp->w_topline < lnume
-			    && linetabsize_eol(wp, wp->w_topline)
-				    <= wp->w_skipcol + sms_marker_overlap(wp, -1))))
+			    && win_linetabsize(wp, wp->w_topline,
+					ml_get(wp->w_topline), (colnr_T)MAXCOL)
+				    <= wp->w_skipcol + sms_marker_overlap(wp,
+					win_col_off(wp) - win_col_off2(wp)))))
 		wp->w_skipcol = 0;
 
 	    // Check if a change in the buffer has invalidated the cached
@@ -810,7 +616,7 @@ changed_common(
 
 	    // Check if any w_lines[] entries have become invalid.
 	    // For entries below the change: Correct the lnums for
-	    // inserted/deleted lines.	Makes it possible to stop displaying
+	    // inserted/deleted lines.  Makes it possible to stop displaying
 	    // after the change.
 	    for (i = 0; i < wp->w_lines_valid; ++i)
 		if (wp->w_lines[i].wl_valid)
@@ -850,20 +656,22 @@ changed_common(
 		set_topline(wp, wp->w_topline);
 #endif
 	    // If lines have been added or removed, relative numbering always
-	    // requires an update even if cursor didn't move.
+	    // requires a redraw.
 	    if (wp->w_p_rnu && xtra != 0)
-		wp->w_last_cursor_lnum_rnu = 0;
-
-#ifdef FEAT_SYN_HL
-	    if (wp->w_p_cul && wp->w_last_cursorline >= lnum)
 	    {
-		if (wp->w_last_cursorline < lnume)
-		    // If 'cursorline' was inside the change, it has already
-		    // been invalidated in w_lines[] by the loop above.
-		    wp->w_last_cursorline = 0;
-		else
-		    // If 'cursorline' was below the change, adjust its lnum.
-		    wp->w_last_cursorline += xtra;
+		wp->w_last_cursor_lnum_rnu = 0;
+		redraw_win_later(wp, UPD_VALID);
+	    }
+#ifdef FEAT_SYN_HL
+	    // Cursor line highlighting probably need to be updated with
+	    // "UPD_VALID" if it's below the change.
+	    // If the cursor line is inside the change we need to redraw more.
+	    if (wp->w_p_cul)
+	    {
+		if (xtra == 0)
+		    redraw_win_later(wp, UPD_VALID);
+		else if (lnum <= wp->w_last_cursorline)
+		    redraw_win_later(wp, UPD_SOME_VALID);
 	    }
 #endif
 	}
@@ -897,7 +705,7 @@ changedOneline(buf_T *buf, linenr_T lnum)
     else
     {
 	// set the area that must be redisplayed to one line
-	buf->b_mod_set = true;
+	buf->b_mod_set = TRUE;
 	buf->b_mod_top = lnum;
 	buf->b_mod_bot = lnum + 1;
 	buf->b_mod_xlines = 0;
@@ -1035,7 +843,7 @@ changed_lines_buf(
     else
     {
 	// set the area that must be redisplayed
-	buf->b_mod_set = true;
+	buf->b_mod_set = TRUE;
 	buf->b_mod_top = lnum;
 	buf->b_mod_bot = lnume + xtra;
 	buf->b_mod_xlines = xtra;
@@ -1104,9 +912,6 @@ unchanged(buf_T *buf, int ff, int always_inc_changedtick)
 	    save_file_ff(buf);
 	check_status(buf);
 	redraw_tabline = TRUE;
-#if defined(FEAT_TABPANEL)
-	redraw_tabpanel = TRUE;
-#endif
 	need_maketitle = TRUE;	    // set window title later
 	++CHANGEDTICK(buf);
     }
@@ -1247,7 +1052,7 @@ ins_char_bytes(char_u *buf, int charlen)
 
     col = curwin->w_cursor.col;
     oldp = ml_get(lnum);
-    linelen = (int)ml_get_len(lnum) + 1;
+    linelen = (int)STRLEN(oldp) + 1;
 
     // The lengths default to the values for when not replacing.
     oldlen = 0;
@@ -1257,7 +1062,7 @@ ins_char_bytes(char_u *buf, int charlen)
     {
 	if (State & VREPLACE_FLAG)
 	{
-	    colnr_T	new_vcol = 0;	// init for GCC
+	    colnr_T	new_vcol = 0;   // init for GCC
 	    colnr_T	vcol;
 	    int		old_list;
 
@@ -1272,7 +1077,7 @@ ins_char_bytes(char_u *buf, int charlen)
 	    // characters (zero if it's a TAB).  Count the number of bytes to
 	    // be deleted to make room for the new character, counting screen
 	    // cells.  May result in adding spaces to fill a gap.
-	    getvcol(curwin, &curwin->w_cursor, NULL, &vcol, NULL, 0);
+	    getvcol(curwin, &curwin->w_cursor, NULL, &vcol, NULL);
 	    new_vcol = vcol + chartabsize(buf, vcol);
 	    while (oldp[col + oldlen] != NUL && vcol < new_vcol)
 	    {
@@ -1371,9 +1176,10 @@ ins_char_bytes(char_u *buf, int charlen)
  * Caller must have prepared for undo.
  */
     void
-ins_str(char_u *s, size_t slen)
+ins_str(char_u *s)
 {
     char_u	*oldp, *newp;
+    int		newlen = (int)STRLEN(s);
     int		oldlen;
     colnr_T	col;
     linenr_T	lnum = curwin->w_cursor.lnum;
@@ -1383,18 +1189,18 @@ ins_str(char_u *s, size_t slen)
 
     col = curwin->w_cursor.col;
     oldp = ml_get(lnum);
-    oldlen = (int)ml_get_len(lnum);
+    oldlen = (int)STRLEN(oldp);
 
-    newp = alloc(oldlen + slen + 1);
+    newp = alloc(oldlen + newlen + 1);
     if (newp == NULL)
 	return;
     if (col > 0)
 	mch_memmove(newp, oldp, (size_t)col);
-    mch_memmove(newp + col, s, slen);
-    mch_memmove(newp + col + slen, oldp + col, (size_t)(oldlen - col + 1));
+    mch_memmove(newp + col, s, (size_t)newlen);
+    mch_memmove(newp + col + newlen, oldp + col, (size_t)(oldlen - col + 1));
     ml_replace(lnum, newp, FALSE);
-    inserted_bytes(lnum, col, (int)slen);
-    curwin->w_cursor.col += (colnr_T)slen;
+    inserted_bytes(lnum, col, newlen);
+    curwin->w_cursor.col += newlen;
 }
 
 /*
@@ -1462,7 +1268,7 @@ del_bytes(
     int		fixpos = fixpos_arg;
 
     oldp = ml_get(lnum);
-    oldlen = (int)ml_get_len(lnum);
+    oldlen = (int)STRLEN(oldp);
 
     // Can't do anything when the cursor is on the NUL after the line.
     if (col >= oldlen)
@@ -1526,7 +1332,7 @@ del_bytes(
     // If the old line has been allocated the deletion can be done in the
     // existing line. Otherwise a new line has to be allocated
     // Can't do this when using Netbeans, because we would need to invoke
-    // netbeans_removed(), which deallocates the line.	Let ml_replace() take
+    // netbeans_removed(), which deallocates the line.  Let ml_replace() take
     // care of notifying Netbeans.
 #ifdef FEAT_NETBEANS_INTG
     if (netbeans_active())
@@ -1546,17 +1352,16 @@ del_bytes(
     mch_memmove(newp + col, oldp + col + count, (size_t)movelen);
     if (alloc_newp)
 	ml_replace(lnum, newp, FALSE);
+#ifdef FEAT_PROP_POPUP
     else
     {
-#ifdef FEAT_PROP_POPUP
 	// Also move any following text properties.
 	if (oldlen + 1 < curbuf->b_ml.ml_line_len)
 	    mch_memmove(newp + newlen + 1, oldp + oldlen + 1,
 			       (size_t)curbuf->b_ml.ml_line_len - oldlen - 1);
-#endif
 	curbuf->b_ml.ml_line_len -= count;
-	curbuf->b_ml.ml_line_textlen = 0;
     }
+#endif
 
     // mark the buffer as changed and prepare for displaying
     inserted_bytes(lnum, col, -count);
@@ -1578,8 +1383,6 @@ del_bytes(
  *	    OPENLINE_KEEPTRAIL	keep trailing spaces
  *	    OPENLINE_MARKFIX	adjust mark positions after the line break
  *	    OPENLINE_COM_LIST	format comments with list or 2nd line indent
- *	    OPENLINE_FORCE_INDENT  set indent from second_line_indent, ignore
- *				   'autoindent'
  *
  * "second_line_indent": indent for after ^^D in Insert mode or if flag
  *			  OPENLINE_COM_LIST
@@ -1628,12 +1431,12 @@ open_line(
 #endif
 
     // make a copy of the current line so we can mess with it
-    saved_line = vim_strnsave(ml_get_curline(), ml_get_curline_len());
+    saved_line = vim_strsave(ml_get_curline());
     if (saved_line == NULL)	    // out of memory!
 	return FALSE;
 
 #ifdef FEAT_PROP_POPUP
-    at_eol = curwin->w_cursor.col >= (int)ml_get_curline_len();
+    at_eol = curwin->w_cursor.col >= (int)STRLEN(saved_line);
 #endif
 
     if (State & VREPLACE_FLAG)
@@ -1646,7 +1449,7 @@ open_line(
 	// the line, replacing what was there before and pushing the right
 	// stuff onto the replace stack.  -- webb.
 	if (curwin->w_cursor.lnum < orig_line_count)
-	    next_line = vim_strnsave(ml_get(curwin->w_cursor.lnum + 1), ml_get_len(curwin->w_cursor.lnum + 1));
+	    next_line = vim_strsave(ml_get(curwin->w_cursor.lnum + 1));
 	else
 	    next_line = vim_strsave((char_u *)"");
 	if (next_line == NULL)	    // out of memory!
@@ -1654,7 +1457,7 @@ open_line(
 
 	// In MODE_VREPLACE state, a NL replaces the rest of the line, and
 	// starts replacing the next line, so push all of the characters left
-	// on the line onto the replace stack.	We'll push any other characters
+	// on the line onto the replace stack.  We'll push any other characters
 	// that might be replaced at the start of the next line (due to
 	// autoindent etc) a bit later.
 	replace_push(NUL);  // Call twice because BS over NL expects it
@@ -1693,11 +1496,9 @@ open_line(
     if (dir == FORWARD && did_ai)
 	trunc_line = TRUE;
 
-    if ((flags & OPENLINE_FORCE_INDENT) && second_line_indent >= 0)
-	newindent = second_line_indent;
     // If 'autoindent' and/or 'smartindent' is set, try to figure out what
     // indent to use for the new line.
-    else if (curbuf->b_p_ai || do_si)
+    if (curbuf->b_p_ai || do_si)
     {
 	// count white space on current line
 #ifdef FEAT_VARTABS
@@ -1865,8 +1666,7 @@ open_line(
 		)
 	    && in_cinkeys(dir == FORWARD
 		? KEY_OPEN_FORW
-		: KEY_OPEN_BACK, ' ', linewhite(curwin->w_cursor.lnum))
-	    && !(flags & OPENLINE_FORCE_INDENT);
+		: KEY_OPEN_BACK, ' ', linewhite(curwin->w_cursor.lnum));
 
     // Find out if the current line starts with a comment leader.
     // This may then be inserted in front of the new line.
@@ -1901,7 +1701,6 @@ open_line(
 	char_u	*lead_repl = NULL;	    // replaces comment leader
 	int	lead_repl_len = 0;	    // length of *lead_repl
 	char_u	lead_middle[COM_MAX_LEN];   // middle-comment string
-	int	lead_middle_len;	    // length of the lead_middle
 	char_u	lead_end[COM_MAX_LEN];	    // end-comment string
 	char_u	*comment_end = NULL;	    // where lead_end has been found
 	int	extra_space = FALSE;	    // append extra space
@@ -1942,7 +1741,7 @@ open_line(
 			require_blank = TRUE;
 		    ++p;
 		}
-		lead_middle_len = copy_option_part(&p, lead_middle, COM_MAX_LEN, ",");
+		(void)copy_option_part(&p, lead_middle, COM_MAX_LEN, ",");
 
 		while (*p && p[-1] != ':')	// find end of end flags
 		{
@@ -1975,7 +1774,7 @@ open_line(
 		    if (current_flag == COM_START)
 		    {
 			lead_repl = lead_middle;
-			lead_repl_len = lead_middle_len;
+			lead_repl_len = (int)STRLEN(lead_middle);
 		    }
 
 		    // If we have hit RETURN immediately after the start
@@ -2429,7 +2228,7 @@ open_line(
 	    saved_line[curwin->w_cursor.col] = NUL;
 	    // Remove trailing white space, unless OPENLINE_KEEPTRAIL used.
 	    if (trunc_line && !(flags & OPENLINE_KEEPTRAIL))
-		truncate_spaces(saved_line, curwin->w_cursor.col);
+		truncate_spaces(saved_line);
 	    ml_replace(curwin->w_cursor.lnum, saved_line, FALSE);
 	    saved_line = NULL;
 	    if (did_append)
@@ -2503,7 +2302,7 @@ open_line(
     if (State & VREPLACE_FLAG)
     {
 	// Put new line in p_extra
-	p_extra = vim_strnsave(ml_get_curline(), ml_get_curline_len());
+	p_extra = vim_strsave(ml_get_curline());
 	if (p_extra == NULL)
 	    goto theend;
 
@@ -2548,7 +2347,7 @@ truncate_line(int fixpos)
 	newp = vim_strsave((char_u *)"");
     else
 	newp = vim_strnsave(old_line, col);
-    deleted = (int)ml_get_len(lnum) - col;
+    deleted = (int)STRLEN(old_line) - col;
 
     if (newp == NULL)
 	return FAIL;
@@ -2570,7 +2369,7 @@ truncate_line(int fixpos)
  * Saves the lines for undo first if "undo" is TRUE.
  */
     void
-del_lines(long nlines, int undo)
+del_lines(long nlines,	int undo)
 {
     long	n;
     linenr_T	first = curwin->w_cursor.lnum;

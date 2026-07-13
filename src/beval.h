@@ -7,11 +7,11 @@
  * Do ":help credits" in Vim to see a list of people who contributed.
  */
 
-#if !defined(BEVAL__H) && defined(FEAT_BEVAL)
+#if !defined(BEVAL__H) && (defined(FEAT_BEVAL) || defined(PROTO))
 #define BEVAL__H
 
 #ifdef FEAT_GUI_GTK
-# if defined(USE_GTK3) || defined(USE_GTK4)
+# ifdef USE_GTK3
 #  include <gtk/gtk.h>
 # else
 #  include <gtk/gtkwidget.h>

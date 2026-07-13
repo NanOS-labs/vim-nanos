@@ -74,148 +74,151 @@ typedef struct AutoPat
     char	    last;		// last pattern for apply_autocmds()
 } AutoPat;
 
-//
-// special cases:
-// BufNewFile and BufRead are searched for ALOT (especially at startup)
-// so we pre-determine their index into the event_tab[] table for fast access.
-// Keep these values in sync with event_tab[]!
-#define BUFNEWFILE_INDEX 9
-#define BUFREAD_INDEX 10
-
-// Must be sorted by the 'value' field because it is used by bsearch()!
-// Events with positive keys aren't allowed in 'eventignorewin'.
-static keyvalue_T event_tab[NUM_EVENTS] = {
-    KEYVALUE_ENTRY(-EVENT_BUFADD, "BufAdd"),
-    KEYVALUE_ENTRY(-EVENT_BUFADD, "BufCreate"),
-    KEYVALUE_ENTRY(-EVENT_BUFDELETE, "BufDelete"),
-    KEYVALUE_ENTRY(-EVENT_BUFENTER, "BufEnter"),
-    KEYVALUE_ENTRY(-EVENT_BUFFILEPOST, "BufFilePost"),
-    KEYVALUE_ENTRY(-EVENT_BUFFILEPRE, "BufFilePre"),
-    KEYVALUE_ENTRY(-EVENT_BUFHIDDEN, "BufHidden"),
-    KEYVALUE_ENTRY(-EVENT_BUFLEAVE, "BufLeave"),
-    KEYVALUE_ENTRY(-EVENT_BUFNEW, "BufNew"),
-    KEYVALUE_ENTRY(-EVENT_BUFNEWFILE, "BufNewFile"),	// BUFNEWFILE_INDEX
-    KEYVALUE_ENTRY(-EVENT_BUFREADPOST, "BufRead"),	// BUFREAD_INDEX
-    KEYVALUE_ENTRY(-EVENT_BUFREADCMD, "BufReadCmd"),
-    KEYVALUE_ENTRY(-EVENT_BUFREADPOST, "BufReadPost"),
-    KEYVALUE_ENTRY(-EVENT_BUFREADPRE, "BufReadPre"),
-    KEYVALUE_ENTRY(-EVENT_BUFUNLOAD, "BufUnload"),
-    KEYVALUE_ENTRY(-EVENT_BUFWINENTER, "BufWinEnter"),
-    KEYVALUE_ENTRY(-EVENT_BUFWINLEAVE, "BufWinLeave"),
-    KEYVALUE_ENTRY(-EVENT_BUFWIPEOUT, "BufWipeout"),
-    KEYVALUE_ENTRY(-EVENT_BUFWRITEPRE, "BufWrite"),
-    KEYVALUE_ENTRY(-EVENT_BUFWRITECMD, "BufWriteCmd"),
-    KEYVALUE_ENTRY(-EVENT_BUFWRITEPOST, "BufWritePost"),
-    KEYVALUE_ENTRY(-EVENT_BUFWRITEPRE, "BufWritePre"),
-    KEYVALUE_ENTRY(EVENT_CMDLINECHANGED, "CmdlineChanged"),
-    KEYVALUE_ENTRY(EVENT_CMDLINEENTER, "CmdlineEnter"),
-    KEYVALUE_ENTRY(EVENT_CMDLINELEAVE, "CmdlineLeave"),
-    KEYVALUE_ENTRY(EVENT_CMDLINELEAVEPRE, "CmdlineLeavePre"),
-    KEYVALUE_ENTRY(EVENT_CMDUNDEFINED, "CmdUndefined"),
-    KEYVALUE_ENTRY(EVENT_CMDWINENTER, "CmdwinEnter"),
-    KEYVALUE_ENTRY(EVENT_CMDWINLEAVE, "CmdwinLeave"),
-    KEYVALUE_ENTRY(EVENT_COLORSCHEME, "ColorScheme"),
-    KEYVALUE_ENTRY(EVENT_COLORSCHEMEPRE, "ColorSchemePre"),
-    KEYVALUE_ENTRY(EVENT_COMPLETECHANGED, "CompleteChanged"),
-    KEYVALUE_ENTRY(EVENT_COMPLETEDONE, "CompleteDone"),
-    KEYVALUE_ENTRY(EVENT_COMPLETEDONEPRE, "CompleteDonePre"),
-    KEYVALUE_ENTRY(-EVENT_CURSORHOLD, "CursorHold"),
-    KEYVALUE_ENTRY(-EVENT_CURSORHOLDI, "CursorHoldI"),
-    KEYVALUE_ENTRY(-EVENT_CURSORMOVED, "CursorMoved"),
-    KEYVALUE_ENTRY(-EVENT_CURSORMOVEDC, "CursorMovedC"),
-    KEYVALUE_ENTRY(-EVENT_CURSORMOVEDI, "CursorMovedI"),
-    KEYVALUE_ENTRY(EVENT_DIFFUPDATED, "DiffUpdated"),
-    KEYVALUE_ENTRY(EVENT_DIRCHANGED, "DirChanged"),
-    KEYVALUE_ENTRY(EVENT_DIRCHANGEDPRE, "DirChangedPre"),
-    KEYVALUE_ENTRY(EVENT_ENCODINGCHANGED, "EncodingChanged"),
-    KEYVALUE_ENTRY(EVENT_EXITPRE, "ExitPre"),
-    KEYVALUE_ENTRY(-EVENT_FILEAPPENDCMD, "FileAppendCmd"),
-    KEYVALUE_ENTRY(-EVENT_FILEAPPENDPOST, "FileAppendPost"),
-    KEYVALUE_ENTRY(-EVENT_FILEAPPENDPRE, "FileAppendPre"),
-    KEYVALUE_ENTRY(-EVENT_FILECHANGEDRO, "FileChangedRO"),
-    KEYVALUE_ENTRY(-EVENT_FILECHANGEDSHELL, "FileChangedShell"),
-    KEYVALUE_ENTRY(-EVENT_FILECHANGEDSHELLPOST, "FileChangedShellPost"),
-    KEYVALUE_ENTRY(EVENT_ENCODINGCHANGED, "FileEncoding"),
-    KEYVALUE_ENTRY(-EVENT_FILEREADCMD, "FileReadCmd"),
-    KEYVALUE_ENTRY(-EVENT_FILEREADPOST, "FileReadPost"),
-    KEYVALUE_ENTRY(-EVENT_FILEREADPRE, "FileReadPre"),
-    KEYVALUE_ENTRY(-EVENT_FILETYPE, "FileType"),
-    KEYVALUE_ENTRY(-EVENT_FILEWRITECMD, "FileWriteCmd"),
-    KEYVALUE_ENTRY(-EVENT_FILEWRITEPOST, "FileWritePost"),
-    KEYVALUE_ENTRY(-EVENT_FILEWRITEPRE, "FileWritePre"),
-    KEYVALUE_ENTRY(-EVENT_FILTERREADPOST, "FilterReadPost"),
-    KEYVALUE_ENTRY(-EVENT_FILTERREADPRE, "FilterReadPre"),
-    KEYVALUE_ENTRY(-EVENT_FILTERWRITEPOST, "FilterWritePost"),
-    KEYVALUE_ENTRY(-EVENT_FILTERWRITEPRE, "FilterWritePre"),
-    KEYVALUE_ENTRY(EVENT_FOCUSGAINED, "FocusGained"),
-    KEYVALUE_ENTRY(EVENT_FOCUSLOST, "FocusLost"),
-    KEYVALUE_ENTRY(EVENT_FUNCUNDEFINED, "FuncUndefined"),
-    KEYVALUE_ENTRY(EVENT_GUIENTER, "GUIEnter"),
-    KEYVALUE_ENTRY(EVENT_GUIFAILED, "GUIFailed"),
-    KEYVALUE_ENTRY(-EVENT_INSERTCHANGE, "InsertChange"),
-    KEYVALUE_ENTRY(-EVENT_INSERTCHARPRE, "InsertCharPre"),
-    KEYVALUE_ENTRY(-EVENT_INSERTENTER, "InsertEnter"),
-    KEYVALUE_ENTRY(-EVENT_INSERTLEAVE, "InsertLeave"),
-    KEYVALUE_ENTRY(-EVENT_INSERTLEAVEPRE, "InsertLeavePre"),
-    KEYVALUE_ENTRY(EVENT_KEYINPUTPRE, "KeyInputPre"),
-    KEYVALUE_ENTRY(EVENT_MENUPOPUP, "MenuPopup"),
-    KEYVALUE_ENTRY(EVENT_MODECHANGED, "ModeChanged"),
-    KEYVALUE_ENTRY(EVENT_OPTIONSET, "OptionSet"),
-    KEYVALUE_ENTRY(EVENT_QUICKFIXCMDPOST, "QuickFixCmdPost"),
-    KEYVALUE_ENTRY(EVENT_QUICKFIXCMDPRE, "QuickFixCmdPre"),
-    KEYVALUE_ENTRY(EVENT_QUITPRE, "QuitPre"),
-    KEYVALUE_ENTRY(EVENT_REMOTEREPLY, "RemoteReply"),
-    KEYVALUE_ENTRY(EVENT_SAFESTATE, "SafeState"),
-    KEYVALUE_ENTRY(EVENT_SAFESTATEAGAIN, "SafeStateAgain"),
-    KEYVALUE_ENTRY(EVENT_SESSIONLOADPOST, "SessionLoadPost"),
-    KEYVALUE_ENTRY(EVENT_SESSIONLOADPRE, "SessionLoadPre"),
-    KEYVALUE_ENTRY(EVENT_SESSIONWRITEPOST, "SessionWritePost"),
-    KEYVALUE_ENTRY(EVENT_SHELLCMDPOST, "ShellCmdPost"),
-    KEYVALUE_ENTRY(-EVENT_SHELLFILTERPOST, "ShellFilterPost"),
-    KEYVALUE_ENTRY(EVENT_SIGUSR1, "SigUSR1"),
-    KEYVALUE_ENTRY(EVENT_SOURCECMD, "SourceCmd"),
-    KEYVALUE_ENTRY(EVENT_SOURCEPOST, "SourcePost"),
-    KEYVALUE_ENTRY(EVENT_SOURCEPRE, "SourcePre"),
-    KEYVALUE_ENTRY(EVENT_SPELLFILEMISSING, "SpellFileMissing"),
-    KEYVALUE_ENTRY(EVENT_STDINREADPOST, "StdinReadPost"),
-    KEYVALUE_ENTRY(EVENT_STDINREADPRE, "StdinReadPre"),
-    KEYVALUE_ENTRY(EVENT_SWAPEXISTS, "SwapExists"),
-    KEYVALUE_ENTRY(EVENT_SYNTAX, "Syntax"),
-    KEYVALUE_ENTRY(EVENT_TABCLOSED, "TabClosed"),
-    KEYVALUE_ENTRY(EVENT_TABCLOSEDPRE, "TabClosedPre"),
-    KEYVALUE_ENTRY(EVENT_TABENTER, "TabEnter"),
-    KEYVALUE_ENTRY(EVENT_TABLEAVE, "TabLeave"),
-    KEYVALUE_ENTRY(EVENT_TABNEW, "TabNew"),
-    KEYVALUE_ENTRY(EVENT_TERMCHANGED, "TermChanged"),
-    KEYVALUE_ENTRY(EVENT_TERMINALOPEN, "TerminalOpen"),
-    KEYVALUE_ENTRY(EVENT_TERMINALWINOPEN, "TerminalWinOpen"),
-    KEYVALUE_ENTRY(EVENT_TERMRESPONSE, "TermResponse"),
-    KEYVALUE_ENTRY(EVENT_TERMRESPONSEALL, "TermResponseAll"),
-    KEYVALUE_ENTRY(-EVENT_TEXTCHANGED, "TextChanged"),
-    KEYVALUE_ENTRY(-EVENT_TEXTCHANGEDI, "TextChangedI"),
-    KEYVALUE_ENTRY(-EVENT_TEXTCHANGEDP, "TextChangedP"),
-    KEYVALUE_ENTRY(-EVENT_TEXTCHANGEDT, "TextChangedT"),
-    KEYVALUE_ENTRY(-EVENT_TEXTPUTPOST, "TextPutPost"),
-    KEYVALUE_ENTRY(-EVENT_TEXTPUTPRE, "TextPutPre"),
-    KEYVALUE_ENTRY(-EVENT_TEXTYANKPOST, "TextYankPost"),
-    KEYVALUE_ENTRY(EVENT_USER, "User"),
-    KEYVALUE_ENTRY(EVENT_VIMENTER, "VimEnter"),
-    KEYVALUE_ENTRY(EVENT_VIMLEAVE, "VimLeave"),
-    KEYVALUE_ENTRY(EVENT_VIMLEAVEPRE, "VimLeavePre"),
-    KEYVALUE_ENTRY(EVENT_VIMRESIZED, "VimResized"),
-    KEYVALUE_ENTRY(EVENT_VIMRESUME, "VimResume"),
-    KEYVALUE_ENTRY(EVENT_VIMSUSPEND, "VimSuspend"),
-    KEYVALUE_ENTRY(-EVENT_WINCLOSED, "WinClosed"),
-    KEYVALUE_ENTRY(-EVENT_WINENTER, "WinEnter"),
-    KEYVALUE_ENTRY(-EVENT_WINLEAVE, "WinLeave"),
-    KEYVALUE_ENTRY(EVENT_WINNEW, "WinNew"),
-    KEYVALUE_ENTRY(EVENT_WINNEWPRE, "WinNewPre"),
-    KEYVALUE_ENTRY(-EVENT_WINRESIZED, "WinResized"),
-    KEYVALUE_ENTRY(-EVENT_WINSCROLLED, "WinScrolled"),
+static struct event_name
+{
+    char	*name;	// event name
+    event_T	event;	// event number
+} event_names[] =
+{
+    {"BufAdd",		EVENT_BUFADD},
+    {"BufCreate",	EVENT_BUFADD},
+    {"BufDelete",	EVENT_BUFDELETE},
+    {"BufEnter",	EVENT_BUFENTER},
+    {"BufFilePost",	EVENT_BUFFILEPOST},
+    {"BufFilePre",	EVENT_BUFFILEPRE},
+    {"BufHidden",	EVENT_BUFHIDDEN},
+    {"BufLeave",	EVENT_BUFLEAVE},
+    {"BufNew",		EVENT_BUFNEW},
+    {"BufNewFile",	EVENT_BUFNEWFILE},
+    {"BufRead",		EVENT_BUFREADPOST},
+    {"BufReadCmd",	EVENT_BUFREADCMD},
+    {"BufReadPost",	EVENT_BUFREADPOST},
+    {"BufReadPre",	EVENT_BUFREADPRE},
+    {"BufUnload",	EVENT_BUFUNLOAD},
+    {"BufWinEnter",	EVENT_BUFWINENTER},
+    {"BufWinLeave",	EVENT_BUFWINLEAVE},
+    {"BufWipeout",	EVENT_BUFWIPEOUT},
+    {"BufWrite",	EVENT_BUFWRITEPRE},
+    {"BufWritePost",	EVENT_BUFWRITEPOST},
+    {"BufWritePre",	EVENT_BUFWRITEPRE},
+    {"BufWriteCmd",	EVENT_BUFWRITECMD},
+    {"CmdlineChanged",	EVENT_CMDLINECHANGED},
+    {"CmdlineEnter",	EVENT_CMDLINEENTER},
+    {"CmdlineLeave",	EVENT_CMDLINELEAVE},
+    {"CmdwinEnter",	EVENT_CMDWINENTER},
+    {"CmdwinLeave",	EVENT_CMDWINLEAVE},
+    {"CmdUndefined",	EVENT_CMDUNDEFINED},
+    {"ColorScheme",	EVENT_COLORSCHEME},
+    {"ColorSchemePre",	EVENT_COLORSCHEMEPRE},
+    {"CompleteChanged",	EVENT_COMPLETECHANGED},
+    {"CompleteDone",	EVENT_COMPLETEDONE},
+    {"CompleteDonePre",	EVENT_COMPLETEDONEPRE},
+    {"CursorHold",	EVENT_CURSORHOLD},
+    {"CursorHoldI",	EVENT_CURSORHOLDI},
+    {"CursorMoved",	EVENT_CURSORMOVED},
+    {"CursorMovedI",	EVENT_CURSORMOVEDI},
+    {"DiffUpdated",	EVENT_DIFFUPDATED},
+    {"DirChanged",	EVENT_DIRCHANGED},
+    {"DirChangedPre",	EVENT_DIRCHANGEDPRE},
+    {"EncodingChanged",	EVENT_ENCODINGCHANGED},
+    {"ExitPre",		EVENT_EXITPRE},
+    {"FileEncoding",	EVENT_ENCODINGCHANGED},
+    {"FileAppendPost",	EVENT_FILEAPPENDPOST},
+    {"FileAppendPre",	EVENT_FILEAPPENDPRE},
+    {"FileAppendCmd",	EVENT_FILEAPPENDCMD},
+    {"FileChangedShell",EVENT_FILECHANGEDSHELL},
+    {"FileChangedShellPost",EVENT_FILECHANGEDSHELLPOST},
+    {"FileChangedRO",	EVENT_FILECHANGEDRO},
+    {"FileReadPost",	EVENT_FILEREADPOST},
+    {"FileReadPre",	EVENT_FILEREADPRE},
+    {"FileReadCmd",	EVENT_FILEREADCMD},
+    {"FileType",	EVENT_FILETYPE},
+    {"FileWritePost",	EVENT_FILEWRITEPOST},
+    {"FileWritePre",	EVENT_FILEWRITEPRE},
+    {"FileWriteCmd",	EVENT_FILEWRITECMD},
+    {"FilterReadPost",	EVENT_FILTERREADPOST},
+    {"FilterReadPre",	EVENT_FILTERREADPRE},
+    {"FilterWritePost",	EVENT_FILTERWRITEPOST},
+    {"FilterWritePre",	EVENT_FILTERWRITEPRE},
+    {"FocusGained",	EVENT_FOCUSGAINED},
+    {"FocusLost",	EVENT_FOCUSLOST},
+    {"FuncUndefined",	EVENT_FUNCUNDEFINED},
+    {"GUIEnter",	EVENT_GUIENTER},
+    {"GUIFailed",	EVENT_GUIFAILED},
+    {"InsertChange",	EVENT_INSERTCHANGE},
+    {"InsertEnter",	EVENT_INSERTENTER},
+    {"InsertLeave",	EVENT_INSERTLEAVE},
+    {"InsertLeavePre",	EVENT_INSERTLEAVEPRE},
+    {"InsertCharPre",	EVENT_INSERTCHARPRE},
+    {"MenuPopup",	EVENT_MENUPOPUP},
+    {"ModeChanged",	EVENT_MODECHANGED},
+    {"OptionSet",	EVENT_OPTIONSET},
+    {"QuickFixCmdPost",	EVENT_QUICKFIXCMDPOST},
+    {"QuickFixCmdPre",	EVENT_QUICKFIXCMDPRE},
+    {"QuitPre",		EVENT_QUITPRE},
+    {"RemoteReply",	EVENT_REMOTEREPLY},
+    {"SafeState",	EVENT_SAFESTATE},
+    {"SafeStateAgain",	EVENT_SAFESTATEAGAIN},
+    {"SessionLoadPost",	EVENT_SESSIONLOADPOST},
+    {"ShellCmdPost",	EVENT_SHELLCMDPOST},
+    {"ShellFilterPost",	EVENT_SHELLFILTERPOST},
+    {"SigUSR1",		EVENT_SIGUSR1},
+    {"SourceCmd",	EVENT_SOURCECMD},
+    {"SourcePre",	EVENT_SOURCEPRE},
+    {"SourcePost",	EVENT_SOURCEPOST},
+    {"SpellFileMissing",EVENT_SPELLFILEMISSING},
+    {"StdinReadPost",	EVENT_STDINREADPOST},
+    {"StdinReadPre",	EVENT_STDINREADPRE},
+    {"SwapExists",	EVENT_SWAPEXISTS},
+    {"Syntax",		EVENT_SYNTAX},
+    {"TabNew",		EVENT_TABNEW},
+    {"TabClosed",	EVENT_TABCLOSED},
+    {"TabEnter",	EVENT_TABENTER},
+    {"TabLeave",	EVENT_TABLEAVE},
+    {"TermChanged",	EVENT_TERMCHANGED},
+    {"TerminalOpen",	EVENT_TERMINALOPEN},
+    {"TerminalWinOpen", EVENT_TERMINALWINOPEN},
+    {"TermResponse",	EVENT_TERMRESPONSE},
+    {"TextChanged",	EVENT_TEXTCHANGED},
+    {"TextChangedI",	EVENT_TEXTCHANGEDI},
+    {"TextChangedP",	EVENT_TEXTCHANGEDP},
+    {"TextChangedT",	EVENT_TEXTCHANGEDT},
+    {"User",		EVENT_USER},
+    {"VimEnter",	EVENT_VIMENTER},
+    {"VimLeave",	EVENT_VIMLEAVE},
+    {"VimLeavePre",	EVENT_VIMLEAVEPRE},
+    {"WinNew",		EVENT_WINNEW},
+    {"WinClosed",	EVENT_WINCLOSED},
+    {"WinEnter",	EVENT_WINENTER},
+    {"WinLeave",	EVENT_WINLEAVE},
+    {"WinResized",	EVENT_WINRESIZED},
+    {"WinScrolled",	EVENT_WINSCROLLED},
+    {"VimResized",	EVENT_VIMRESIZED},
+    {"TextYankPost",	EVENT_TEXTYANKPOST},
+    {"VimSuspend",	EVENT_VIMSUSPEND},
+    {"VimResume",	EVENT_VIMRESUME},
+    {NULL,		(event_T)0}
 };
 
-static AutoPat *first_autopat[NUM_EVENTS] = { NULL };
-static AutoPat *last_autopat[NUM_EVENTS] = { NULL };
+static AutoPat *first_autopat[NUM_EVENTS] =
+{
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+};
+
+static AutoPat *last_autopat[NUM_EVENTS] =
+{
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL
+};
 
 #define AUGROUP_DEFAULT    (-1)	    // default autocmd group
 #define AUGROUP_ERROR	   (-2)	    // erroneous autocmd group
@@ -260,8 +263,7 @@ static int current_augroup = AUGROUP_DEFAULT;
 
 static int au_need_clean = FALSE;   // need to delete marked patterns
 
-static event_T event_name2nr(char_u *start, char_u **end);
-static string_T *event_nr2name(event_T event);
+static char_u *event_nr2name(event_T event);
 static int au_get_grouparg(char_u **argp);
 static int do_autocmd_event(event_T event, char_u *pat, int once, int nested, char_u *cmd, int forceit, int group, int flags);
 static int apply_autocmds_group(event_T event, char_u *fname, char_u *fname_io, int force, int group, buf_T *buf, exarg_T *eap);
@@ -305,8 +307,6 @@ show_autocmd(AutoPat *ap, event_T event)
 	goto theend;
     if (event != last_event || ap->group != last_group)
     {
-	string_T    *event_name;
-
 	if (ap->group != AUGROUP_DEFAULT)
 	{
 	    if (AUGROUP_NAME(ap->group) == NULL)
@@ -315,8 +315,7 @@ show_autocmd(AutoPat *ap, event_T event)
 		msg_puts_attr((char *)AUGROUP_NAME(ap->group), HL_ATTR(HLF_T));
 	    msg_puts("  ");
 	}
-	event_name = event_nr2name(event);
-	msg_puts_attr((char *)event_name->string, HL_ATTR(HLF_T));
+	msg_puts_attr((char *)event_nr2name(event), HL_ATTR(HLF_T));
 	last_event = event;
 	last_group = ap->group;
 	msg_putchar('\n');
@@ -488,12 +487,9 @@ aubuflocal_remove(buf_T *buf)
 		au_remove_pat(ap);
 		if (p_verbose >= 6)
 		{
-		    string_T	*event_name;
-
 		    verbose_enter();
-		    event_name = event_nr2name(event);
 		    smsg(_("auto-removing autocommand: %s <buffer=%d>"),
-				       event_name->string, buf->b_fnum);
+					   event_nr2name(event), buf->b_fnum);
 		    verbose_leave();
 		}
 	    }
@@ -639,7 +635,7 @@ autocmd_init(void)
     CLEAR_FIELD(aucmd_win);
 }
 
-#if defined(EXITFREE)
+#if defined(EXITFREE) || defined(PROTO)
     void
 free_all_autocmds(void)
 {
@@ -682,91 +678,38 @@ is_aucmd_win(win_T *win)
 event_name2nr(char_u *start, char_u **end)
 {
     char_u	*p;
-    keyvalue_T target;
-    keyvalue_T *entry;
-    static keyvalue_T *bufnewfile = &event_tab[BUFNEWFILE_INDEX];
-    static keyvalue_T *bufread = &event_tab[BUFREAD_INDEX];
+    int		i;
+    int		len;
 
     // the event name ends with end of line, '|', a blank or a comma
     for (p = start; *p && !VIM_ISWHITE(*p) && *p != ',' && *p != '|'; ++p)
 	;
-
-    target.key = 0;
-    target.value.string = start;
-    target.value.length = (size_t)(p - start);
-
-    // special cases:
-    // BufNewFile and BufRead are searched for ALOT (especially at startup)
-    // so we check for them first.
-    if (cmp_keyvalue_value_ni(&target, bufnewfile) == 0)
-	entry = bufnewfile;
-    else if (cmp_keyvalue_value_ni(&target, bufread) == 0)
-	entry = bufread;
-    else
-	entry = (keyvalue_T *)bsearch(&target, &event_tab, NUM_EVENTS,
-				sizeof(event_tab[0]), cmp_keyvalue_value_ni);
-
+    for (i = 0; event_names[i].name != NULL; ++i)
+    {
+	len = (int)STRLEN(event_names[i].name);
+	if (len == p - start && STRNICMP(event_names[i].name, start, len) == 0)
+	    break;
+    }
     if (*p == ',')
 	++p;
     *end = p;
-
-    return (entry == NULL) ? NUM_EVENTS : (event_T)abs(entry->key);
+    if (event_names[i].name == NULL)
+	return NUM_EVENTS;
+    return event_names[i].event;
 }
 
 /*
  * Return the name for event "event".
  */
-    static string_T *
+    static char_u *
 event_nr2name(event_T event)
 {
     int	    i;
-    enum {CACHE_SIZE = 12};
-    static int cache_tab[CACHE_SIZE];
-    static int cache_last_index = -1;
-    static string_T unknown = STR_LITERAL_INIT("Unknown");
 
-    if (cache_last_index < 0)
-    {
-	for (i = 0; i < CACHE_SIZE; ++i)
-	    cache_tab[i] = -1;
-	cache_last_index = CACHE_SIZE - 1;
-    }
-
-    // first look in the cache
-    // the cache is circular. to search it we start at the most recent entry
-    // and go backwards wrapping around when we get to index 0.
-    for (i = cache_last_index; cache_tab[i] >= 0; )
-    {
-	if ((event_T)abs(event_tab[cache_tab[i]].key) == event)
-	    return &event_tab[cache_tab[i]].value;
-
-	if (i == 0)
-	    i = CACHE_SIZE - 1;
-	else
-	    --i;
-
-	// are we back at the start?
-	if (i == cache_last_index)
-	    break;
-    }
-
-    // look in the event table itself
-    for (i = 0; i < NUM_EVENTS; ++i)
-    {
-	if ((event_T)abs(event_tab[i].key) == event)
-	{
-	    // store the found entry in the next position in the cache,
-	    // wrapping around when we get to the maximum index.
-	    if (cache_last_index == CACHE_SIZE - 1)
-		cache_last_index = 0;
-	    else
-		++cache_last_index;
-	    cache_tab[cache_last_index] = i;
-	    return &event_tab[i].value;
-	}
-    }
-
-    return &unknown;
+    for (i = 0; event_names[i].name != NULL; ++i)
+	if (event_names[i].event == event)
+	    return (char_u *)event_names[i].name;
+    return (char_u *)"Unknown";
 }
 
 /*
@@ -807,59 +750,48 @@ find_end_event(
 }
 
 /*
- * Return TRUE if "event" is included in 'eventignore(win)'.
+ * Return TRUE if "event" is included in 'eventignore'.
  */
-    int
-event_ignored(event_T event, char_u *ei)
+    static int
+event_ignored(event_T event)
 {
-    int ignored = FALSE;
-    while (*ei != NUL)
+    char_u	*p = p_ei;
+
+    while (*p != NUL)
     {
-	int unignore = *ei == '-';
-	ei += unignore;
-	if (STRNICMP(ei, "all", 3) == 0 && (ei[3] == NUL || ei[3] == ','))
-	{
-	    ignored = ei == p_ei || (event_tab[event].key <= 0);
-	    ei += 3 + (ei[3] == ',');
-	}
-	else if (event_name2nr(ei, &ei) == event)
-	{
-	    if (unignore)
-		return FALSE;
-	    else
-		ignored = TRUE;
-	}
+	if (STRNICMP(p, "all", 3) == 0 && (p[3] == NUL || p[3] == ','))
+	    return TRUE;
+	if (event_name2nr(p, &p) == event)
+	    return TRUE;
     }
 
-    return ignored;
+    return FALSE;
 }
 
 /*
- * Return OK when the contents of 'eventignore' or 'eventignorewin' is valid,
- * FAIL otherwise.
+ * Return OK when the contents of p_ei is valid, FAIL otherwise.
  */
     int
-check_ei(char_u *ei)
+check_ei(void)
 {
-    int	win = ei != p_ei;
+    char_u	*p = p_ei;
 
-    while (*ei)
+    while (*p)
     {
-	if (STRNICMP(ei, "all", 3) == 0 && (ei[3] == NUL || ei[3] == ','))
-	    ei += 3 + (ei[3] == ',');
-	else
+	if (STRNICMP(p, "all", 3) == 0 && (p[3] == NUL || p[3] == ','))
 	{
-	    ei += (*ei == '-');
-	    event_T event = event_name2nr(ei, &ei);
-	    if (event == NUM_EVENTS || (win && event_tab[event].key > 0))
-		return FAIL;
+	    p += 3;
+	    if (*p == ',')
+		++p;
 	}
+	else if (event_name2nr(p, &p) == NUM_EVENTS)
+	    return FAIL;
     }
 
     return OK;
 }
 
-#if defined(FEAT_SYN_HL)
+# if defined(FEAT_SYN_HL) || defined(PROTO)
 
 /*
  * Add "what" to 'eventignore' to skip loading syntax highlighting for every
@@ -871,14 +803,12 @@ au_event_disable(char *what)
 {
     char_u	*new_ei;
     char_u	*save_ei;
-    size_t	p_ei_len;
 
-    p_ei_len = STRLEN(p_ei);
-    save_ei = vim_strnsave(p_ei, p_ei_len);
+    save_ei = vim_strsave(p_ei);
     if (save_ei == NULL)
 	return NULL;
 
-    new_ei = vim_strnsave(p_ei, p_ei_len + STRLEN(what));
+    new_ei = vim_strnsave(p_ei, STRLEN(p_ei) + STRLEN(what));
     if (new_ei == NULL)
     {
 	vim_free(save_ei);
@@ -888,7 +818,7 @@ au_event_disable(char *what)
     if (*what == ',' && *p_ei == NUL)
 	STRCPY(new_ei, what + 1);
     else
-	STRCPY(new_ei + p_ei_len, what);
+	STRCAT(new_ei, what);
     set_string_option_direct((char_u *)"ei", -1, new_ei,
 	    OPT_FREE, SID_NONE);
     vim_free(new_ei);
@@ -905,7 +835,7 @@ au_event_restore(char_u *old_ei)
 	vim_free(old_ei);
     }
 }
-#endif  // FEAT_SYN_HL
+# endif  // FEAT_SYN_HL
 
 /*
  * do_autocmd() -- implements the :autocmd command.  Can be used in the
@@ -1601,10 +1531,9 @@ aucmd_prepbuf(
 #ifdef FEAT_AUTOCHDIR
     int		save_acd;
 #endif
-    int		same_buffer = buf == curbuf;
 
     // Find a window that is for the new buffer
-    if (same_buffer)		// be quick when buf is curbuf
+    if (buf == curbuf)		// be quick when buf is curbuf
 	win = curwin;
     else
 	FOR_ALL_WINDOWS(win)
@@ -1635,11 +1564,9 @@ aucmd_prepbuf(
     }
 
     aco->save_curwin_id = curwin->w_id;
+    aco->save_curbuf = curbuf;
     aco->save_prevwin_id = prevwin == NULL ? 0 : prevwin->w_id;
-#ifdef FEAT_JOB_CHANNEL
-    if (bt_prompt(curbuf))
-	aco->save_prompt_insert = curbuf->b_prompt_insert;
-#endif
+    aco->save_State = State;
 
     if (win != NULL)
     {
@@ -1659,11 +1586,6 @@ aucmd_prepbuf(
 
 	win_init_popup_win(auc_win, buf);
 
-	// Make sure tp_localdir and globaldir are NULL to avoid a
-	// chdir() in win_enter_ext().
-	// win_init_popup_win() has already set w_localdir to NULL.
-	aco->tp_localdir = curtab->tp_localdir;
-	curtab->tp_localdir = NULL;
 	aco->globaldir = globaldir;
 	globaldir = NULL;
 
@@ -1680,8 +1602,8 @@ aucmd_prepbuf(
 	p_acd = FALSE;
 #endif
 
-	(void)win_split_ins(0, WSP_TOP | WSP_FORCE_ROOM, auc_win, 0, NULL);
-	win_comp_pos();   // recompute window positions
+	(void)win_split_ins(0, WSP_TOP, auc_win, 0);
+	(void)win_comp_pos();   // recompute window positions
 	p_ea = save_ea;
 #ifdef FEAT_AUTOCHDIR
 	p_acd = save_acd;
@@ -1693,10 +1615,9 @@ aucmd_prepbuf(
     aco->new_curwin_id = curwin->w_id;
     set_bufref(&aco->new_curbuf, curbuf);
 
+    // disable the Visual area, the position may be invalid in another buffer
     aco->save_VIsual_active = VIsual_active;
-    if (!same_buffer)
-	// disable the Visual area, position may be invalid in another buffer
-	VIsual_active = FALSE;
+    VIsual_active = FALSE;
 }
 
 /*
@@ -1735,8 +1656,16 @@ aucmd_restbuf(
 	}
 win_found:
 	--curbuf->b_nwindows;
+#ifdef FEAT_JOB_CHANNEL
+	int save_stop_insert_mode = stop_insert_mode;
+	// May need to stop Insert mode if we were in a prompt buffer.
+	leaving_window(curwin);
+	// Do not stop Insert mode when already in Insert mode before.
+	if (aco->save_State & MODE_INSERT)
+	    stop_insert_mode = save_stop_insert_mode;
+#endif
 	// Remove the window and frame from the tree of frames.
-	(void)winframe_remove(curwin, &dummy, NULL, NULL);
+	(void)winframe_remove(curwin, &dummy, NULL);
 	win_remove(curwin, NULL);
 
 	// The window is marked as not used, but it is not freed, it can be
@@ -1749,7 +1678,7 @@ win_found:
 	    close_tabpage(curtab);
 
 	restore_snapshot(SNAP_AUCMD_IDX, FALSE);
-	win_comp_pos();   // recompute window positions
+	(void)win_comp_pos();   // recompute window positions
 	unblock_autocmds();
 
 	save_curwin = win_find_by_id(aco->save_curwin_id);
@@ -1762,20 +1691,12 @@ win_found:
 #ifdef FEAT_JOB_CHANNEL
 	// May need to restore insert mode for a prompt buffer.
 	entering_window(curwin);
-	if (bt_prompt(curbuf))
-	    curbuf->b_prompt_insert = aco->save_prompt_insert;
 #endif
 	prevwin = win_find_by_id(aco->save_prevwin_id);
 #ifdef FEAT_EVAL
 	vars_clear(&awp->w_vars->dv_hashtab);  // free all w: variables
 	hash_init(&awp->w_vars->dv_hashtab);   // re-use the hashtab
 #endif
-	// If :lcd has been used in the autocommand window, correct current
-	// directory before restoring tp_localdir and globaldir.
-	if (awp->w_localdir != NULL)
-	    win_fix_current_dir();
-	vim_free(curtab->tp_localdir);
-	curtab->tp_localdir = aco->tp_localdir;
 	vim_free(globaldir);
 	globaldir = aco->globaldir;
 
@@ -1814,10 +1735,10 @@ win_found:
 		    && bufref_valid(&aco->new_curbuf)
 		    && aco->new_curbuf.br_buf->b_ml.ml_mfp != NULL)
 	    {
-#if defined(FEAT_SYN_HL) || defined(FEAT_SPELL)
+# if defined(FEAT_SYN_HL) || defined(FEAT_SPELL)
 		if (curwin->w_s == &curbuf->b_s)
 		    curwin->w_s = &aco->new_curbuf.br_buf->b_s;
-#endif
+# endif
 		--curbuf->b_nwindows;
 		curbuf = aco->new_curbuf.br_buf;
 		curwin->w_buffer = curbuf;
@@ -2013,15 +1934,6 @@ has_insertcharpre(void)
 }
 
 /*
- * Return TRUE when there is an KeyInputPre autocommand defined.
- */
-    int
-has_keyinputpre(void)
-{
-    return (first_autopat[(int)EVENT_KEYINPUTPRE] != NULL);
-}
-
-/*
  * Return TRUE when there is an CmdUndefined autocommand defined.
  */
     int
@@ -2030,26 +1942,7 @@ has_cmdundefined(void)
     return (first_autopat[(int)EVENT_CMDUNDEFINED] != NULL);
 }
 
-#if defined(FEAT_EVAL)
-
-/*
- * Return TRUE when there is a TextPutPost autocommand defined.
- */
-    int
-has_textputpost(void)
-{
-    return (first_autopat[(int)EVENT_TEXTPUTPOST] != NULL);
-}
-
-/*
- * Return TRUE when there is a TextPutPre autocommand defined.
- */
-    int
-has_textputpre(void)
-{
-    return (first_autopat[(int)EVENT_TEXTPUTPRE] != NULL);
-}
-
+#if defined(FEAT_EVAL) || defined(PROTO)
 /*
  * Return TRUE when there is a TextYankPost autocommand defined.
  */
@@ -2060,7 +1953,7 @@ has_textyankpost(void)
 }
 #endif
 
-#if defined(FEAT_EVAL)
+#if defined(FEAT_EVAL) || defined(PROTO)
 /*
  * Return TRUE when there is a CompleteChanged autocommand defined.
  */
@@ -2071,7 +1964,7 @@ has_completechanged(void)
 }
 #endif
 
-#if defined(FEAT_EVAL)
+#if defined(FEAT_EVAL) || defined(PROTO)
 /*
  * Return TRUE when there is a ModeChanged autocommand defined.
  */
@@ -2160,28 +2053,7 @@ apply_autocmds_group(
     /*
      * Ignore events in 'eventignore'.
      */
-    if (event_ignored(event, p_ei))
-	goto BYPASS_AU;
-
-    int win_ignore = FALSE;
-    // If event is allowed in 'eventignorewin', check if curwin or all windows
-    // into "buf" are ignoring the event.
-    if (buf == curbuf && event_tab[event].key <= 0)
-	win_ignore = event_ignored(event, curwin->w_p_eiw);
-    else if (buf != NULL && event_tab[event].key <= 0 && buf->b_nwindows > 0)
-    {
-	tabpage_T *tp;
-	win_T *wp;
-
-	win_ignore = TRUE;
-	FOR_ALL_TAB_WINDOWS(tp, wp)
-	    if (wp->w_buffer == buf && !event_ignored(event, wp->w_p_eiw))
-	    {
-		win_ignore = FALSE;
-		break;
-	    }
-    }
-    if (win_ignore)
+    if (event_ignored(event))
 	goto BYPASS_AU;
 
     /*
@@ -2228,8 +2100,7 @@ apply_autocmds_group(
     {
 	if (event == EVENT_COLORSCHEME || event == EVENT_COLORSCHEMEPRE
 						 || event == EVENT_OPTIONSET
-						 || event == EVENT_MODECHANGED
-						 || event == EVENT_TERMRESPONSEALL)
+						 || event == EVENT_MODECHANGED)
 	    autocmd_fname = NULL;
 	else if (fname != NULL && !ends_excmd(*fname))
 	    autocmd_fname = fname;
@@ -2290,14 +2161,11 @@ apply_autocmds_group(
 		|| event == EVENT_SYNTAX
 		|| event == EVENT_CMDLINECHANGED
 		|| event == EVENT_CMDLINEENTER
-		|| event == EVENT_CMDLINELEAVEPRE
 		|| event == EVENT_CMDLINELEAVE
-		|| event == EVENT_CURSORMOVEDC
 		|| event == EVENT_CMDWINENTER
 		|| event == EVENT_CMDWINLEAVE
 		|| event == EVENT_CMDUNDEFINED
 		|| event == EVENT_FUNCUNDEFINED
-		|| event == EVENT_KEYINPUTPRE
 		|| event == EVENT_REMOTEREPLY
 		|| event == EVENT_SPELLFILEMISSING
 		|| event == EVENT_QUICKFIXCMDPRE
@@ -2312,8 +2180,7 @@ apply_autocmds_group(
 		|| event == EVENT_USER
 		|| event == EVENT_WINCLOSED
 		|| event == EVENT_WINRESIZED
-		|| event == EVENT_WINSCROLLED
-		|| event == EVENT_TERMRESPONSEALL)
+		|| event == EVENT_WINSCROLLED)
 	{
 	    fname = vim_strsave(fname);
 	    autocmd_fname_full = TRUE; // don't expand it later
@@ -2381,7 +2248,7 @@ apply_autocmds_group(
 	    saveRedobuff(&save_redo);
 	    did_save_redobuff = TRUE;
 	}
-	curbuf->b_did_filetype = curbuf->b_keep_filetype;
+	did_filetype = keep_filetype;
     }
 
     /*
@@ -2393,7 +2260,7 @@ apply_autocmds_group(
 
     // Remember that FileType was triggered.  Used for did_filetype().
     if (event == EVENT_FILETYPE)
-	curbuf->b_did_filetype = true;
+	did_filetype = TRUE;
 
     tail = gettail(fname);
 
@@ -2502,7 +2369,7 @@ apply_autocmds_group(
 	restore_search_patterns();
 	if (did_save_redobuff)
 	    restoreRedobuff(&save_redo);
-	curbuf->b_did_filetype = false;
+	did_filetype = FALSE;
 	while (au_pending_free_buf != NULL)
 	{
 	    buf_T *b = au_pending_free_buf->b_next;
@@ -2544,19 +2411,14 @@ BYPASS_AU:
 	aubuflocal_remove(buf);
 
     if (retval == OK && event == EVENT_FILETYPE)
-	curbuf->b_au_did_filetype = true;
+	au_did_filetype = TRUE;
 
     return retval;
 }
 
-#ifdef FEAT_EVAL
+# ifdef FEAT_EVAL
 static char_u	*old_termresponse = NULL;
-static char_u	*old_termu7resp = NULL;
-static char_u	*old_termblinkresp = NULL;
-static char_u	*old_termrbgresp = NULL;
-static char_u	*old_termrfgresp = NULL;
-static char_u	*old_termstyleresp = NULL;
-#endif
+# endif
 
 /*
  * Block triggering autocommands until unblock_autocmd() is called.
@@ -2565,18 +2427,11 @@ static char_u	*old_termstyleresp = NULL;
     void
 block_autocmds(void)
 {
-#ifdef FEAT_EVAL
+# ifdef FEAT_EVAL
     // Remember the value of v:termresponse.
     if (autocmd_blocked == 0)
-    {
 	old_termresponse = get_vim_var_str(VV_TERMRESPONSE);
-	old_termu7resp = get_vim_var_str(VV_TERMU7RESP);
-	old_termblinkresp = get_vim_var_str(VV_TERMBLINKRESP);
-	old_termrbgresp = get_vim_var_str(VV_TERMRBGRESP);
-	old_termrfgresp = get_vim_var_str(VV_TERMRFGRESP);
-	old_termstyleresp = get_vim_var_str(VV_TERMSTYLERESP);
-    }
-#endif
+# endif
     ++autocmd_blocked;
 }
 
@@ -2585,39 +2440,14 @@ unblock_autocmds(void)
 {
     --autocmd_blocked;
 
-#ifdef FEAT_EVAL
-    // When v:termresponse, etc, were set while autocommands were blocked,
-    // trigger the autocommands now.  Esp. useful when executing a shell
-    // command during startup (vimdiff).
-    if (autocmd_blocked == 0)
-    {
-	if (get_vim_var_str(VV_TERMRESPONSE) != old_termresponse)
-	{
-	    apply_autocmds(EVENT_TERMRESPONSE, NULL, NULL, FALSE, curbuf);
-	    apply_autocmds(EVENT_TERMRESPONSEALL, (char_u *)"version", NULL, FALSE, curbuf);
-	}
-	if (get_vim_var_str(VV_TERMU7RESP) != old_termu7resp)
-	{
-	    apply_autocmds(EVENT_TERMRESPONSEALL, (char_u *)"ambiguouswidth", NULL, FALSE, curbuf);
-	}
-	if (get_vim_var_str(VV_TERMBLINKRESP) != old_termblinkresp)
-	{
-	    apply_autocmds(EVENT_TERMRESPONSEALL, (char_u *)"cursorblink", NULL, FALSE, curbuf);
-	}
-	if (get_vim_var_str(VV_TERMRBGRESP) != old_termrbgresp)
-	{
-	    apply_autocmds(EVENT_TERMRESPONSEALL, (char_u *)"background", NULL, FALSE, curbuf);
-	}
-	if (get_vim_var_str(VV_TERMRFGRESP) != old_termrfgresp)
-	{
-	    apply_autocmds(EVENT_TERMRESPONSEALL, (char_u *)"foreground", NULL, FALSE, curbuf);
-	}
-	if (get_vim_var_str(VV_TERMSTYLERESP) != old_termstyleresp)
-	{
-	    apply_autocmds(EVENT_TERMRESPONSEALL, (char_u *)"cursorshape", NULL, FALSE, curbuf);
-	}
-    }
-#endif
+# ifdef FEAT_EVAL
+    // When v:termresponse was set while autocommands were blocked, trigger
+    // the autocommands now.  Esp. useful when executing a shell command
+    // during startup (vimdiff).
+    if (autocmd_blocked == 0
+		      && get_vim_var_str(VV_TERMRESPONSE) != old_termresponse)
+	apply_autocmds(EVENT_TERMRESPONSE, NULL, NULL, FALSE, curbuf);
+# endif
 }
 
     int
@@ -2635,7 +2465,11 @@ auto_next_pat(
     int		stop_at_last)	    // stop when 'last' flag is set
 {
     AutoPat	*ap;
+    AutoCmd	*cp;
+    char_u	*name;
+    char	*s;
     estack_T	*entry;
+    char_u	*namep;
 
     entry = ((estack_T *)exestack.ga_data) + exestack.ga_len - 1;
 
@@ -2659,17 +2493,12 @@ auto_next_pat(
 				      apc->sfname, apc->tail, ap->allow_dirs))
 		    : ap->buflocal_nr == apc->arg_bufnr)
 	    {
-		string_T    *event_name;
-		char	    *fmt;
-		char_u	    *namep;
-		AutoCmd	    *cp;
-
-		event_name = event_nr2name(apc->event);
-		fmt = _("%s Autocommands for \"%s\"");
-		namep = alloc(STRLEN(fmt) + event_name->length + ap->patlen + 1);
+		name = event_nr2name(apc->event);
+		s = _("%s Autocommands for \"%s\"");
+		namep = alloc(STRLEN(s) + STRLEN(name) + ap->patlen + 1);
 		if (namep != NULL)
 		{
-		    sprintf((char *)namep, fmt, (char *)event_name->string, (char *)ap->pat);
+		    sprintf((char *)namep, s, (char *)name, (char *)ap->pat);
 		    if (p_verbose >= 8)
 		    {
 			verbose_enter();
@@ -2698,7 +2527,7 @@ auto_next_pat(
     }
 }
 
-#if defined(FEAT_EVAL)
+#if defined(FEAT_EVAL) || defined(PROTO)
 /*
  * Get the script context where autocommand "acp" is defined.
  */
@@ -2898,8 +2727,6 @@ set_context_in_autocmd(
     char_u *
 get_event_name(expand_T *xp UNUSED, int idx)
 {
-    int i;
-
     if (idx < augroups.ga_len)		// First list group names, if wanted
     {
 	if (!include_groups || AUGROUP_NAME(idx) == NULL
@@ -2907,12 +2734,7 @@ get_event_name(expand_T *xp UNUSED, int idx)
 	    return (char_u *)"";	// skip deleted entries
 	return AUGROUP_NAME(idx);	// return a name
     }
-
-    i = idx - augroups.ga_len;
-    if (i < 0 || i >= NUM_EVENTS)
-	return NULL;
-
-    return event_tab[i].value.string;
+    return (char_u *)event_names[idx - augroups.ga_len].name;
 }
 
 /*
@@ -2920,36 +2742,13 @@ get_event_name(expand_T *xp UNUSED, int idx)
  * include groups.
  */
     char_u *
-get_event_name_no_group(expand_T *xp UNUSED, int idx, int win)
+get_event_name_no_group(expand_T *xp UNUSED, int idx)
 {
-    if (idx < 0 || idx >= NUM_EVENTS)
-	return NULL;
-
-    if (!win)
-	return event_tab[idx].value.string;
-
-    // Need to check subset of allowed values for 'eventignorewin'.
-    int j = 0;
-    for (int i = 0; i < NUM_EVENTS; ++i)
-    {
-	j += event_tab[i].key <= 0;
-	if (j == idx + 1)
-	    return event_tab[i].value.string;
-    }
-
-    return NULL;
+    return (char_u *)event_names[idx].name;
 }
 
-/*
- * Return TRUE when there is a TabClosedPre autocommand defined.
- */
-    int
-has_tabclosedpre(void)
-{
-    return (first_autopat[(int)EVENT_TABCLOSEDPRE] != NULL);
-}
 
-#if defined(FEAT_EVAL)
+#if defined(FEAT_EVAL) || defined(PROTO)
 /*
  * Return TRUE if autocmd is supported.
  */
@@ -3088,9 +2887,6 @@ autocmd_add_or_delete(typval_T *argvars, typval_T *rettv, int delete)
 
     rettv->v_type = VAR_BOOL;
     rettv->vval.v_number = VVAL_FALSE;
-
-    if (check_restricted() || check_secure())
-	return;
 
     if (check_for_list_arg(argvars, 0) == FAIL)
 	return;
@@ -3371,6 +3167,7 @@ f_autocmd_get(typval_T *argvars, typval_T *rettv)
     AutoCmd	*ac;
     list_T	*event_list;
     dict_T	*event_dict;
+    char_u	*event_name = NULL;
     char_u	*pat = NULL;
     char_u	*name = NULL;
     int		group = AUGROUP_ALL;
@@ -3407,6 +3204,8 @@ f_autocmd_get(typval_T *argvars, typval_T *rettv)
 	// return only the autocmds for the specified event
 	if (dict_has_key(argvars[0].vval.v_dict, "event"))
 	{
+	    int		i;
+
 	    name = dict_get_string(argvars[0].vval.v_dict, "event", TRUE);
 	    if (name == NULL)
 		return;
@@ -3415,21 +3214,16 @@ f_autocmd_get(typval_T *argvars, typval_T *rettv)
 		event_arg = NUM_EVENTS;
 	    else
 	    {
-		keyvalue_T target;
-		keyvalue_T *entry;
-
-		target.key = 0;
-		target.value.string = name;
-		target.value.length = STRLEN(target.value.string);
-		entry = (keyvalue_T *)bsearch(&target, &event_tab,
-		    NUM_EVENTS, sizeof(event_tab[0]), cmp_keyvalue_value_ni);
-		if (entry == NULL)
+		for (i = 0; event_names[i].name != NULL; i++)
+		    if (STRICMP(event_names[i].name, name) == 0)
+			break;
+		if (event_names[i].name == NULL)
 		{
 		    semsg(_(e_no_such_event_str), name);
 		    vim_free(name);
 		    return;
 		}
-		event_arg = (event_T)abs(entry->key);
+		event_arg = event_names[i].event;
 	    }
 	    vim_free(name);
 	}
@@ -3449,8 +3243,6 @@ f_autocmd_get(typval_T *argvars, typval_T *rettv)
     for (event = (event_T)0; (int)event < NUM_EVENTS;
 	    event = (event_T)((int)event + 1))
     {
-	string_T    *event_name;
-
 	if (event_arg != NUM_EVENTS && event != event_arg)
 	    continue;
 
@@ -3459,10 +3251,7 @@ f_autocmd_get(typval_T *argvars, typval_T *rettv)
 	// iterate through all the patterns for this autocmd event
 	FOR_ALL_AUTOCMD_PATTERNS(event, ap)
 	{
-	    string_T	group_name;
-
-	    if (ap->pat == NULL)		// pattern has been removed
-		continue;
+	    char_u	*group_name;
 
 	    if (group != AUGROUP_ALL && group != ap->group)
 		continue;
@@ -3470,11 +3259,7 @@ f_autocmd_get(typval_T *argvars, typval_T *rettv)
 	    if (pat != NULL && STRCMP(pat, ap->pat) != 0)
 		continue;
 
-	    group_name.string = get_augroup_name(NULL, ap->group);
-	    if (group_name.string == NULL)
-		STR_LITERAL_SET(group_name, "");
-	    else
-		group_name.length = STRLEN(group_name.string);
+	    group_name = get_augroup_name(NULL, ap->group);
 
 	    // iterate through all the commands for this pattern and add one
 	    // item for each cmd.
@@ -3483,15 +3268,12 @@ f_autocmd_get(typval_T *argvars, typval_T *rettv)
 		event_dict = dict_alloc();
 		if (event_dict == NULL
 			|| list_append_dict(event_list, event_dict) == FAIL)
-		{
-		    vim_free(pat);
 		    return;
-		}
 
-		if (dict_add_string_len(event_dict, "event",
-			event_name->string, (int)event_name->length) == FAIL
-			|| dict_add_string_len(event_dict, "group",
-			    group_name.string, (int)group_name.length) == FAIL
+		if (dict_add_string(event_dict, "event", event_name) == FAIL
+			|| dict_add_string(event_dict, "group",
+					group_name == NULL ? (char_u *)""
+							  : group_name) == FAIL
 			|| (ap->buflocal_nr != 0
 				&& (dict_add_number(event_dict, "bufnr",
 						    ap->buflocal_nr) == FAIL))
@@ -3501,10 +3283,7 @@ f_autocmd_get(typval_T *argvars, typval_T *rettv)
 			|| dict_add_bool(event_dict, "once", ac->once) == FAIL
 			|| dict_add_bool(event_dict, "nested",
 							   ac->nested) == FAIL)
-		{
-		    vim_free(pat);
 		    return;
-		}
 	    }
 	}
     }

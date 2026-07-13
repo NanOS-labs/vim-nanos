@@ -1,5 +1,4 @@
 /* vi:set ts=8 sts=4 sw=4 noet:
- * VIM_TEST_SETUP let g:c_comment_strings = 1
  *
  * VIM - Vi IMproved	by Bram Moolenaar
  *

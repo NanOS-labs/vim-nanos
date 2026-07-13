@@ -1,5 +1,8 @@
 " Test for commands that operate on the spellfile.
 
+source shared.vim
+source check.vim
+
 CheckFeature spell
 CheckFeature syntax
 
@@ -334,10 +337,6 @@ func Test_spellfile_format_error()
   " SN_COMPOUND: incorrect comppatlen
   call Spellfile_Test(0z080000000007040101000000020165, 'E758:')
 
-  " SN_COMPOUND: oversized sectionlen
-  let v = eval('0z08004000000803010161' .. repeat('61', 50) .. 'FF')
-  call Spellfile_Test(v, 'E759:')
-
   " SN_INFO: missing info
   call Spellfile_Test(0z0F0000000005040101, '')
 
@@ -371,24 +370,6 @@ func Test_spellfile_format_error()
 
   " LWORDTREE: incorrect sibling node count
   call Spellfile_Test(0zFF00000001040000000000000000, 'E759:')
-
-  " LWORDTREE: declared nodecount larger than the tree actually fills.
-  " Root has two siblings: 'x' (recurses into an end-of-word at idx 3..4)
-  " and BY_INDEX targeting position 9.  Tree fills positions 0..4, leaving
-  " 5..9 unwritten — byts[9] would be uninitialized without the fix.
-  call Spellfile_Test(0zFF0000000A02780100000979010000000000000000000000, 'E759:')
-
-  " LWORDTREE: recursion depth past MAXWLEN.  A linear chain of 254
-  " (siblingcount=1, byte='a') frames drives read_tree_node to depth
-  " MAXWLEN where the new guard rejects.  The trailing (01 00) gives the
-  " chain a clean end-of-word so an *unguarded* parser would accept the
-  " file silently — that's what makes this a meaningful regression test
-  " for the depth check specifically (a deeper chain would also crash
-  " unguarded builds via stack overflow, which we don't want in CI).
-  let v = eval('0zFF00000200' .. repeat('0161', 255)
-               \ .. '0100' ..  repeat('00', 8))
-
-  call Spellfile_Test(v, 'E759:')
 
   " KWORDTREE: missing tree node
   call Spellfile_Test(0zFF0000000000000004, 'E758:')
@@ -864,22 +845,6 @@ func Test_spell_add_word()
   %bw!
 endfunc
 
-func Test_spell_add_long_word()
-  set spell spellfile=./Xspellfile.add spelllang=en
-
-  let word = repeat('a', 9000)
-  let v:errmsg = ''
-  " Spell checking doesn't really work for such a long word,
-  " but this should not cause an E1510 error.
-  exe 'spellgood ' .. word
-  call assert_equal('', v:errmsg)
-  call assert_equal([word], readfile('./Xspellfile.add'))
-
-  set spell& spellfile= spelllang& encoding=utf-8
-  call delete('./Xspellfile.add')
-  call delete('./Xspellfile.add.spl')
-endfunc
-
 func Test_spellfile_verbose()
   call writefile(['1', 'one'], 'XtestVerbose.dic', 'D')
   call writefile([], 'XtestVerbose.aff', 'D')
@@ -1173,7 +1138,7 @@ endfunc
 " 'spellfile' accepts '@' on top of 'isfname'.
 def Test_spellfile_allow_at_character()
   mkdir('Xtest/the foo@bar,dir', 'p')
-  &spellfile = './Xtest/the foo@bar\,dir/Xspellfile.add'
+  &spellfile = './Xtest/the foo@bar,dir/Xspellfile.add'
   &spellfile = ''
   delete('Xtest', 'rf')
 enddef
@@ -1187,64 +1152,5 @@ func Test_mkspell_empty_dic()
   call delete('XtestEmpty.spl')
 endfunc
 
-" This used to cause a buffer overflow
-func Test_mkspell_no_buffer_overflow()
-  CheckNotMSWindows
-
-  let aff_lines = ['SET ISO8859-1', 'SFX A Y 1',
-        \ 'SFX A 0 s ' .. repeat(nr2char(0xff), 491)]
-  call writefile(aff_lines, 'Xbof.aff', 'D')
-  call writefile(['1', 'word/A'], 'Xbof.dic', 'D')
-  " Must not crash; ignore any conversion/regex errors.
-  try
-    mkspell! Xbof.spl Xbof
-  catch
-  endtry
-  defer delete('Xbof.spl')
-
-  let long = repeat(nr2char(0xff), 200)
-  let aff2_lines = ['SET ISO8859-1', 'SFX A Y 1',
-        \ 'SFX A 0 ' .. long .. ' .']
-  call writefile(aff2_lines, 'Xbof2.aff', 'D')
-  call writefile(['1', long .. '/A'], 'Xbof2.dic', 'D')
-  try
-    mkspell! Xbof2.spl Xbof2
-  catch
-  endtry
-  defer delete('Xbof2.spl')
-endfunc
-
-func Test_mkspell_no_affixlist_overflow()
-  let aff_lines = [
-        \ 'SET ISO8859-1',
-        \ 'PFXPOSTPONE',
-        \ 'PFX A Y 1',
-        \ 'PFX A 0 pre .',
-        \ ]
-  call writefile(aff_lines, 'Xaffbof.aff', 'D')
-  call writefile(['1', 'word/' .. repeat('A', 300)], 'Xaffbof.dic', 'D')
-
-  call assert_fails('mkspell! Xaffbof.spl Xaffbof',
-        \ 'Too many postponed prefixes and/or compound flags')
-  call assert_false(filereadable('Xaffbof.spl'))
-endfunc
-
-func Test_mkspell_no_compflag_overflow()
-  " Overflow the compound-flag path in get_compflags(): a word whose
-  " affix list repeats a compound flag many times accumulates one ID per
-  " occurrence, overrunning store_afflist[MAXWLEN].
-  let aff_lines = [
-        \ 'SET ISO8859-1',
-        \ 'COMPOUNDFLAG c',
-        \ ]
-  call writefile(aff_lines, 'Xcompbof.aff', 'D')
-
-  " Repeat the compound flag 'c' far past MAXWLEN.
-  call writefile(['1', 'word/' .. repeat('c', 300)], 'Xcompbof.dic', 'D')
-
-  call assert_fails('mkspell! Xcompbof.spl Xcompbof',
-        \ 'Too many postponed prefixes and/or compound flags')
-  call assert_false(filereadable('Xcompbof.spl'))
-endfunc
 
 " vim: shiftwidth=2 sts=2 expandtab

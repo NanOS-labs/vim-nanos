@@ -3,8 +3,7 @@ vim9script
 # Language:           ConTeXt typesetting engine
 # Maintainer:         Nicola Vitacolonna <nvitacolonna@gmail.com>
 # Former Maintainers: Nikolai Weibull <now@bitwi.se>
-# Contributors:       Enno Nagel
-# Last Change:        2026 Jan 10
+# Latest Revision:    2023 Dec 26
 
 if exists("g:current_compiler")
   finish
@@ -12,12 +11,15 @@ endif
 
 import autoload '../autoload/context.vim'
 
+if exists(":CompilerSet") != 2 # Older Vim always used :setlocal
+  command -nargs=* CompilerSet setlocal <args>
+endif
+
 g:current_compiler = 'context'
 
 if get(b:, 'context_ignore_makefile', get(g:, 'context_ignore_makefile', 0)) ||
   (!filereadable('Makefile') && !filereadable('makefile'))
-  var makeprg =  join(context.ConTeXtCmd(shellescape(expand('%:p:t'))), ' ')
-  execute 'CompilerSet makeprg=' .. escape(makeprg, ' ')
+  &l:makeprg =  join(context.ConTeXtCmd(shellescape(expand('%:p:t'))), ' ')
 else
   g:current_compiler = 'make'
 endif
@@ -27,14 +29,14 @@ const context_errorformat = join([
   "%-Qclose source%.%#> %f",
   "%-Popen source%.%#name '%f'",
   "%-Qclose source%.%#name '%f'",
-  "%E! %m",
-  "%Ztex %trror%.%#error on line %l in file %f",
+  "tex %trror%.%#error on line %l in file %f: %m",
   "%Elua %trror%.%#error on line %l in file %f:",
   "%+Emetapost %#> error: %#",
   "%Emetafun%.%#error: %m",
+  "! error: %#%m",
   "%-C %#",
   "%C! %m",
-  "%Z%.%#[ctxlua]:%l:%m",
+  "%Z[ctxlua]%m",
   "%+C<*> %.%#",
   "%-C%.%#",
   "%Z...%m",

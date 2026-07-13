@@ -55,18 +55,7 @@ silent! endwhile
 
 " In the GUI we can always change the screen size.
 if has('gui_running')
-  if has('gui_gtk')
-    " Use e.g. SetUp() and TearDown() to change "&guifont" when needed;
-    " otherwise, keep the following value to match current screendumps.
-    set guifont=Monospace\ 10
-  endif
-
-  func s:SetDefaultOptionsForGUIBuilds()
-    set columns=80 lines=25
-  endfunc
-else
-  func s:SetDefaultOptionsForGUIBuilds()
-  endfunc
+  set columns=80 lines=25
 endif
 
 " Check that the screen size is at least 24 x 80 characters.
@@ -101,13 +90,10 @@ endif
 set shellslash
 
 " Common with all tests on all systems.
-source util/setup.vim
+source setup.vim
 
 " Needed for RunningWithValgrind().
-source util/shared.vim
-
-" Needed for the various Check commands
-source util/check.vim
+source shared.vim
 
 " For consistency run all tests with 'nocompatible' set.
 " This also enables use of line continuation.
@@ -183,7 +169,6 @@ endif
 
 
 " Prepare for calling test_garbagecollect_now().
-" Also avoids some delays in Insert mode completion.
 let v:testing = 1
 
 " By default, copy each buffer line into allocated memory, so that valgrind can
@@ -204,6 +189,10 @@ function GetAllocId(name)
   close
   return lnum - top - 1
 endfunc
+
+if has('reltime')
+  let g:func_start = reltime()
+endif
 
 " Get the list of swap files in the current directory.
 func s:GetSwapFileList()
@@ -255,10 +244,10 @@ func RunTheTest(test)
   echoconsole prefix .. 'Executing ' .. a:test
 
   if has('timers')
-    " No test should take longer than 45 seconds.  If it takes longer we
+    " No test should take longer than 30 seconds.  If it takes longer we
     " assume we are stuck and need to break out.
     let test_timeout_timer =
-          \ timer_start(RunningWithValgrind() ? 90000 : 45000, 'TestTimeout')
+          \ timer_start(RunningWithValgrind() ? 50000 : 30000, 'TestTimeout')
     let g:timeout_start = localtime()
   endif
 
@@ -276,15 +265,9 @@ func RunTheTest(test)
   " buffers.
   %bwipe!
 
-  " Clear all children notifications in case there are stale ones left
-  let g:child_notification = 0
-
   " The test may change the current directory. Save and restore the
   " directory after executing the test.
   let save_cwd = getcwd()
-
-  " Permit "SetUp()" implementations to override default settings.
-  call s:SetDefaultOptionsForGUIBuilds()
 
   if exists("*SetUp")
     try
@@ -539,11 +522,11 @@ func FinishTesting()
   " Add SKIPPED messages
   call extend(s:messages, s:skipped)
 
-  " Append messages to the file "messages", but remove ANSI Escape sequences
+  " Append messages to the file "messages"
   split messages
   call append(line('$'), '')
   call append(line('$'), 'From ' . g:testname . ':')
-  call append(line('$'), s:messages->map({_, val -> substitute(val, '\%x1b[[|]\(\d\?\|\d\+\)[hm]', '', 'g')}))
+  call append(line('$'), s:messages)
   write
 
   qall!
@@ -620,18 +603,6 @@ for g:testfunc in sort(s:tests)
   " A test can set g:test_is_flaky to retry running the test.
   let g:test_is_flaky = 0
 
-  let g:check_screendump_called = v:false
-
-  " A test can set g:max_run_nr to change the max retry count.
-  let g:max_run_nr = 5
-  if has('mac')
-    let g:max_run_nr = 10
-  endif
-
-  " By default, give up if the same error occurs.  A test can set
-  " g:giveup_same_error to 0 to not give up on the same error and keep trying.
-  let g:giveup_same_error = 1
-
   let starttime = strftime("%H:%M:%S")
   call RunTheTest(g:testfunc)
 
@@ -647,15 +618,10 @@ for g:testfunc in sort(s:tests)
       call extend(s:messages, v:errors)
 
       let endtime = strftime("%H:%M:%S")
-      if has('reltime')
-        let suffix = $' in{reltimestr(reltime(g:func_start))} seconds'
-      else
-        let suffix = ''
-      endif
-      call add(total_errors, $'Run {g:run_nr}, {starttime} - {endtime}{suffix}:')
+      call add(total_errors, $'Run {g:run_nr}, {starttime} - {endtime}:')
       call extend(total_errors, v:errors)
 
-      if g:run_nr >= g:max_run_nr || g:giveup_same_error && prev_error == v:errors[0]
+      if g:run_nr >= 5 || prev_error == v:errors[0]
         call add(total_errors, 'Flaky test failed too often, giving up')
         let v:errors = total_errors
         break
@@ -666,8 +632,7 @@ for g:testfunc in sort(s:tests)
       " Flakiness is often caused by the system being very busy.  Sleep a
       " couple of seconds to have a higher chance of succeeding the second
       " time.
-      let delay = g:run_nr * 2
-      exe 'sleep' delay
+      sleep 2
 
       let prev_error = v:errors[0]
       let v:errors = []

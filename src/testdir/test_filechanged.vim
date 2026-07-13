@@ -1,5 +1,7 @@
 " Tests for when a file was changed outside of Vim.
 
+source check.vim
+
 func Test_FileChangedShell_reload()
   CheckUnix
 
@@ -9,12 +11,8 @@ func Test_FileChangedShell_reload()
   new Xchanged_r
   call setline(1, 'reload this')
   write
-  " Need to wait until the timestamp would change.
-  if has('nanotime')
-    sleep 10m
-  else
-    sleep 2
-  endif
+  " Need to wait until the timestamp would change by at least a second.
+  sleep 2
   silent !echo 'extra line' >>Xchanged_r
   checktime
   call assert_equal('changed', g:reason)
@@ -52,11 +50,7 @@ func Test_FileChangedShell_reload()
   call assert_equal('new line', getline(1))
 
   " Only time changed
-  if has('nanotime')
-    sleep 10m
-  else
-    sleep 2
-  endif
+  sleep 2
   silent !touch Xchanged_r
   let g:reason = ''
   checktime
@@ -71,11 +65,7 @@ func Test_FileChangedShell_reload()
     call setline(2, 'before write')
     write
     call setline(2, 'after write')
-    if has('nanotime')
-      sleep 10m
-    else
-      sleep 2
-    endif
+    sleep 2
     silent !echo 'different line' >>Xchanged_r
     let g:reason = ''
     checktime
@@ -202,12 +192,8 @@ func Test_file_changed_dialog()
   new Xchanged_d
   call setline(1, 'reload this')
   write
-  " Need to wait until the timestamp would change.
-  if has('nanotime')
-    sleep 10m
-  else
-    sleep 2
-  endif
+  " Need to wait until the timestamp would change by at least a second.
+  sleep 2
   silent !echo 'extra line' >>Xchanged_d
   call feedkeys('L', 'L')
   checktime
@@ -242,11 +228,7 @@ func Test_file_changed_dialog()
   call assert_equal('new line', getline(1))
 
   " Only time changed, no prompt
-  if has('nanotime')
-    sleep 10m
-  else
-    sleep 2
-  endif
+  sleep 2
   silent !touch Xchanged_d
   let v:warningmsg = ''
   checktime Xchanged_d
@@ -277,29 +259,6 @@ func Test_FileChangedShell_newbuf()
   call assert_fails('checktime', 'E811:')
 
   au! testnewbuf
-endfunc
-
-func Test_file_changed_wipeout()
-  call writefile(['foo'], 'Xchanged_bw', 'D')
-  edit Xchanged_bw
-  augroup FileChangedWipeout
-    autocmd FileChangedShell * ++once let v:fcs_choice = 'reload'
-    autocmd BufReadPost * ++once %bw!
-  augroup END
-
-  " Need to wait until the timestamp would change.
-  if has('nanotime')
-    sleep 10m
-  else
-    sleep 2
-  endif
-  call writefile(['bar'], 'Xchanged_bw')
-  call assert_equal(1, bufexists('Xchanged_bw'))
-  checktime " used to be a heap UAF
-  call assert_equal(0, bufexists('Xchanged_bw'))
-
-  au! FileChangedWipeout
-  %bw!
 endfunc
 
 " vim: shiftwidth=2 sts=2 expandtab

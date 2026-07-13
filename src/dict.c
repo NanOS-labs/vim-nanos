@@ -13,7 +13,7 @@
 
 #include "vim.h"
 
-#if defined(FEAT_EVAL)
+#if defined(FEAT_EVAL) || defined(PROTO)
 
 // List head for garbage collection. Although there can be a reference loop
 // from partial to dict to partial, we don't need to keep track of the partial,
@@ -387,11 +387,7 @@ dict_add(dict_T *d, dictitem_T *item)
  * Returns FAIL when out of memory and when key already exists.
  */
     static int
-dict_add_number_special(
-    dict_T	*d,
-    char	*key,
-    varnumber_T	nr,
-    vartype_T	vartype)
+dict_add_number_special(dict_T *d, char *key, varnumber_T nr, vartype_T vartype)
 {
     dictitem_T	*item;
 
@@ -536,29 +532,6 @@ dict_add_callback(dict_T *d, char *key, callback_T *cb)
 }
 
 /*
- * Add a function entry to dictionary "d".
- * Returns FAIL when out of memory and when key already exists.
- */
-    int
-dict_add_func(dict_T *d, char *key, ufunc_T *fp)
-{
-    dictitem_T	*item;
-
-    item = dictitem_alloc((char_u *)key);
-    if (item == NULL)
-	return FAIL;
-    item->di_tv.v_type = VAR_FUNC;
-    item->di_tv.vval.v_string = vim_strnsave(fp->uf_name, fp->uf_namelen);
-    if (dict_add(d, item) == FAIL)
-    {
-	dictitem_free(item);
-	return FAIL;
-    }
-    func_ref(item->di_tv.vval.v_string);
-    return OK;
-}
-
-/*
  * Initializes "iter" for iterating over dictionary items with
  * dict_iterate_next().
  * If "var" is not a Dict or an empty Dict then there will be nothing to
@@ -668,8 +641,7 @@ dict_find(dict_T *d, char_u *key, int len)
     else
     {
 	// Avoid a malloc/free by using buf[].
-	mch_memmove(buf, key, (size_t)len);
-	buf[len] = NUL;
+	vim_strncpy(buf, key, len);
 	akey = buf;
     }
 
@@ -818,7 +790,7 @@ dict2string(typval_T *tv, int copyID, int restore_copyID)
 	    if (first)
 		first = FALSE;
 	    else
-		GA_CONCAT_LITERAL(&ga, ", ");
+		ga_concat(&ga, (char_u *)", ");
 
 	    tofree = string_quote(hi->hi_key, FALSE);
 	    if (tofree != NULL)
@@ -826,7 +798,7 @@ dict2string(typval_T *tv, int copyID, int restore_copyID)
 		ga_concat(&ga, tofree);
 		vim_free(tofree);
 	    }
-	    GA_CONCAT_LITERAL(&ga, ": ");
+	    ga_concat(&ga, (char_u *)": ");
 	    s = echo_string_core(&HI2DI(hi)->di_tv, &tofree, numbuf, copyID,
 						 FALSE, restore_copyID, TRUE);
 	    if (s != NULL)
@@ -995,7 +967,7 @@ eval_dict(char_u **arg, typval_T *rettv, evalarg_T *evalarg, int literal)
 		{
 		    emsg(_(e_missing_matching_bracket_after_dict_key));
 		    clear_tv(&tvkey);
-		    goto failret;
+		    return FAIL;
 		}
 		++*arg;
 	    }
@@ -1039,13 +1011,17 @@ eval_dict(char_u **arg, typval_T *rettv, evalarg_T *evalarg, int literal)
 	*arg = skipwhite_and_linebreak(*arg + 1, evalarg);
 	if (eval1(arg, &tv, evalarg) == FAIL)	// recursive!
 	{
-	    clear_tv(&tvkey);
+	    if (evaluate)
+		clear_tv(&tvkey);
 	    goto failret;
 	}
 	if (check_typval_is_value(&tv) == FAIL)
 	{
-	    clear_tv(&tvkey);
-	    clear_tv(&tv);
+	    if (evaluate)
+	    {
+		clear_tv(&tvkey);
+		clear_tv(&tv);
+	    }
 	    goto failret;
 	}
 	if (evaluate)
@@ -1076,12 +1052,12 @@ eval_dict(char_u **arg, typval_T *rettv, evalarg_T *evalarg, int literal)
 	had_comma = **arg == ',';
 	if (had_comma)
 	{
-	    if (vim9script && !IS_WHITE_NL_OR_NUL((*arg)[1]))
+	    if (vim9script && (*arg)[1] != NUL && !VIM_ISWHITE((*arg)[1]))
 	    {
 		semsg(_(e_white_space_required_after_str_str), ",", *arg);
 		goto failret;
 	    }
-	    *arg = skipwhite_and_nl(*arg + 1);
+	    *arg = skipwhite(*arg + 1);
 	}
 
 	// the "}" can be on the next line
@@ -1113,33 +1089,6 @@ failret:
 	rettv_dict_set(rettv, d);
 
     return OK;
-}
-
-/*
- * Evaluate a literal dictionary: #{key: val, key: val}
- * "*arg" points to the "#".
- * On return, "*arg" points to the character after the Dict.
- * Return OK or FAIL.  Returns NOTDONE for {expr}.
- */
-    int
-eval_lit_dict(char_u **arg, typval_T *rettv, evalarg_T *evalarg)
-{
-    int		vim9script = in_vim9script();
-    int		ret = OK;
-
-    if (vim9script)
-    {
-	ret = vim9_bad_comment(*arg) ? FAIL : NOTDONE;
-    }
-    else if ((*arg)[1] == '{')
-    {
-	++*arg;
-	ret = eval_dict(arg, rettv, evalarg, TRUE);
-    }
-    else
-	ret = NOTDONE;
-
-    return ret;
 }
 
 /*
@@ -1246,7 +1195,8 @@ dict_lookup(hashitem_T *hi)
 dict_equal(
     dict_T	*d1,
     dict_T	*d2,
-    int		ic)	    // ignore case for strings
+    int		ic,	    // ignore case for strings
+    int		recursive)  // TRUE when used recursively
 {
     hashitem_T	*hi;
     dictitem_T	*item2;
@@ -1270,7 +1220,7 @@ dict_equal(
 	    item2 = dict_find(d2, hi->hi_key, -1);
 	    if (item2 == NULL)
 		return FALSE;
-	    if (!tv_equal(&HI2DI(hi)->di_tv, &item2->di_tv, ic))
+	    if (!tv_equal(&HI2DI(hi)->di_tv, &item2->di_tv, ic, recursive))
 		return FALSE;
 	    --todo;
 	}
@@ -1298,7 +1248,7 @@ dict_count(dict_T *d, typval_T *needle, int ic)
 	if (!HASHITEM_EMPTY(hi))
 	{
 	    --todo;
-	    if (tv_equal(&HI2DI(hi)->di_tv, needle, ic))
+	    if (tv_equal(&HI2DI(hi)->di_tv, needle, ic, FALSE))
 		++n;
 	}
     }
@@ -1350,18 +1300,12 @@ dict_extend_func(
 
 	action = tv_get_string_chk(&argvars[2]);
 	if (action == NULL)
-	{
-	    if (is_new)
-		dict_unref(d1);
 	    return;
-	}
 	for (i = 0; i < 3; ++i)
 	    if (STRCMP(action, av[i]) == 0)
 		break;
 	if (i == 3)
 	{
-	    if (is_new)
-		dict_unref(d1);
 	    semsg(_(e_invalid_argument_str), action);
 	    return;
 	}
@@ -1371,11 +1315,7 @@ dict_extend_func(
 
     if (type != NULL && check_typval_arg_type(type, &argvars[1],
 							 func_name, 2) == FAIL)
-    {
-	if (is_new)
-	    dict_unref(d1);
 	return;
-    }
     dict_extend(d1, d2, action, func_name);
 
     if (is_new)
@@ -1389,8 +1329,8 @@ dict_extend_func(
 }
 
 /*
- * Implementation of map(), filter(), foreach() for a Dict.  Apply "expr" to
- * every item in Dict "d" and return the result in "rettv".
+ * Implementation of map() and filter() for a Dict.  Apply "expr" to every
+ * item in Dict "d" and return the result in "rettv".
  */
     void
 dict_filter_map(
@@ -1452,6 +1392,7 @@ dict_filter_map(
 			    arg_errmsg, TRUE)))
 		break;
 	    set_vim_var_string(VV_KEY, di->di_key, -1);
+	    newtv.v_type = VAR_UNKNOWN;
 	    r = filter_map_one(&di->di_tv, expr, filtermap, fc, &newtv, &rem);
 	    clear_tv(get_vim_var_tv(VV_KEY));
 	    if (r == FAIL || did_emsg)
@@ -1558,7 +1499,9 @@ dict2list(typval_T *argvars, typval_T *rettv, dict2list_T what)
     if (rettv_list_alloc(rettv) == FAIL)
 	return;
 
-    if (check_for_dict_arg(argvars, 0) == FAIL)
+    if ((what == DICT2LIST_ITEMS
+		? check_for_string_or_list_or_dict_arg(argvars, 0)
+		: check_for_dict_arg(argvars, 0)) == FAIL)
 	return;
 
     d = argvars[0].vval.v_dict;
@@ -1614,9 +1557,14 @@ dict2list(typval_T *argvars, typval_T *rettv, dict2list_T what)
  * "items(dict)" function
  */
     void
-dict2items(typval_T *argvars, typval_T *rettv)
+f_items(typval_T *argvars, typval_T *rettv)
 {
-    dict2list(argvars, rettv, DICT2LIST_ITEMS);
+    if (argvars[0].v_type == VAR_STRING)
+	string2items(argvars, rettv);
+    else if (argvars[0].v_type == VAR_LIST)
+	list2items(argvars, rettv);
+    else
+	dict2list(argvars, rettv, DICT2LIST_ITEMS);
 }
 
 /*

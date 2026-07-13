@@ -1,7 +1,6 @@
 " ---------------------------------------------------------------------
 " getscriptPlugin.vim
-"  Maintainer:	This runtime file is looking for a new maintainer.
-"  Original Author:	Charles E. Campbell
+"  Author:	Charles E. Campbell
 "  Date:	Nov 29, 2013
 "  Installing:	:help glvs-install
 "  Usage:	:help glvs
@@ -23,7 +22,7 @@ if &cp
  endif
  finish
 endif
-let g:loaded_getscriptPlugin = "v37"
+let g:loaded_getscriptPlugin = "v36"
 let s:keepcpo                = &cpo
 set cpo&vim
 

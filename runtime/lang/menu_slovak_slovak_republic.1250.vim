@@ -1,6 +1,6 @@
 " Menu Translations:	Slovak
 " Translated By:	Martin Lacko <lacko@host.sk>
-" Last Change:		2024 May 2
+" Last Change:		2020 Apr 23
 " Original translations
 
 " Quit when menu translations have already been done.
@@ -56,8 +56,8 @@ menutrans Find\ and\ Rep&lace\.\.\.	N&ahradi\.\.\.
 menutrans Settings\ &Window		Mo&nosti
 menutrans &Global\ Settings		&Globálne\ monosti
 menutrans Toggle\ Pattern\ &Highlight<Tab>:set\ hls!	Prepnú\ paletu\ zvırazòovania<Tab>:set\ hls!
-menutrans Toggle\ &Ignoring\ Case<Tab>:set\ ic!	Prepnú\ &ignorovanie\ ve¾kosti<Tab>:set\ ic!
-menutrans Toggle\ &Showing\ Matched\ Pairs<Tab>:set\ sm!	Prepnú\ &ukáza\ zhodu<Tab>:set\ sm!
+menutrans Toggle\ &Ignore-case<Tab>:set\ ic!	Prepnú\ &ignorovanie\ ve¾kosti<Tab>:set\ ic!
+menutrans Toggle\ &Showmatch<Tab>:set\ sm!	Prepnú\ &ukáza\ zhodu<Tab>:set\ sm!
 menutrans &Context\ lines		&Kontextové\ riadky
 menutrans &Virtual\ Edit		&Virtuálne\ úpravy
 menutrans Never				Nikdy
@@ -66,7 +66,7 @@ menutrans Insert\ mode			Reim\ vkladania
 menutrans Block\ and\ Insert		Blok\ a\ vkladanie
 menutrans Always			Vdy
 menutrans Toggle\ Insert\ &Mode<Tab>:set\ im!	Prepnú\ rei&m\ vkladania<Tab>:set\ im!
-menutrans Toggle\ Vi\ C&ompatibility<Tab>:set\ cp!	Prepnú\ vi\ kompatibilitu<Tab>:set\ cp!
+menutrans Toggle\ Vi\ C&ompatible<Tab>:set\ cp!	Prepnú\ vi\ kompatibilitu<Tab>:set\ cp!
 menutrans Search\ &Path\.\.\.		Cesta\ &h¾adania\.\.\.
 menutrans Ta&g\ Files\.\.\.		Ta&gové\ súbory\.\.\.
 menutrans Toggle\ &Toolbar		Prepnú\ &panel
@@ -121,7 +121,7 @@ menutrans &Open<Tab>:copen		&Otvori<Tab>:copen
 menutrans &Close<Tab>:cclose		&Zatvori<Tab>:cclose
 menutrans &Convert\ to\ HEX<Tab>:%!xxd	&Konvertova\ do\ HEX<Tab>:%!xxd
 menutrans Conve&rt\ back<Tab>:%!xxd\ -r	Konve&rtova\ spä<Tab>:%!xxd\ -r
-menutrans &Make<Tab>:make		urobi¿<Tab>:make
+menutrans &Make<Tab>:make		&Make<Tab>:make
 menutrans &List\ Errors<Tab>:cl		Vıpis\ &chıb<Tab>:cl
 menutrans L&ist\ Messages<Tab>:cl!	Vıp&is\ správ<Tab>:cl!
 menutrans &Next\ Error<Tab>:cn		Ïa&lšia\ chyba<Tab>:cn
@@ -129,7 +129,7 @@ menutrans &Previous\ Error<Tab>:cp	&Predchádzajúca\ chyba<Tab>:cp
 menutrans &Older\ List<Tab>:cold	Sta&rší\ zoznam<Tab>:cold
 menutrans N&ewer\ List<Tab>:cnew	Novší\ &zoznam<Tab>:cnew
 menutrans Error\ &Window<Tab>:cwin	Chybové\ o&kno<Tab>:cwin
-menutrans Se&T\ Compiler		Vyberte\ k&ompilátor
+menutrans &Set\ Compiler		Vyberte\ k&ompilátor
 menutrans Convert\ to\ HEX<Tab>:%!xxd	Prvies\ do\ šes&tnástkového\ formátu<Tab>:%!xxd
 menutrans Convert\ back<Tab>:%!xxd\ -r	Pr&evies\ spä<Tab>:%!xxd\ -r
 
@@ -233,33 +233,6 @@ menutrans on/off\ for\ &This\ file	Zapnú/vypnú\ pre\ &tento\ súbor
 menutrans Co&lor\ test		Test\ &farieb
 menutrans &Highlight\ test	&Test\ zvırazòovania
 menutrans &Convert\ to\ HTML	&Previes\ do\ HTML
-menutrans Open\ &Tab\.\.\.<Tab>:tabnew	otvori¿\ kartu\.\.\.<Tab>:tabnew
-menutrans Startup\ &Settings			nastavenia\ spustenia
-menutrans Toggle\ relati&ve\ Line\ Numbering<Tab>:set\ rnu!	relatívne\ ¿íslovanie\ riadkov<Tab>:set\ nru!
-menutrans Toggle\ Line\ &Wrapping<Tab>:set\ wrap!		zalomenie\ ¿iary<Tab>:set\ wrap!
-menutrans Toggle\ W&rapping\ at\ word<Tab>:set\ lbr!		zalomenie\ pri\ slove<Tab>:set\ lbr!
-menutrans Toggle\ Tab\ &Expanding<Tab>:set\ et!			roz¿írenie\ tabu¿ky<Tab>:set\ et!
-menutrans Toggle\ &Auto\ Indenting<Tab>:set\ ai!		automatické\ odsadenie<Tab>:set\ ai!
-menutrans Toggle\ &C-Style\ Indenting<Tab>:set\ cin!		Odsadenie\ v\ ¿tıle\ C<Tab>:set\ cin!
-menutrans &Keymap				mapa\ klávesov
-menutrans &Spelling				Pravopis
-menutrans &Spell\ Check\ On			Kontrola\ pravopisu\ na
-menutrans Spell\ Check\ &Off			Kontrola\ pravopisu\ vypnuté
-menutrans To\ &Next\ error<Tab>]s		¿al¿ia\ chyba<Tab>]s
-menutrans To\ &Previous\ error<Tab>[s		predchádzajúca\ chyba<Tab>[s
-menutrans Suggest\ &Corrections<Tab>z=		navrhnú¿\ opravy<Tab>z=
-menutrans &Repeat\ correction<Tab>:spellrepall	opakova¿\ opravu<Tab>:spellrepall
-"-------------------
-menutrans Set\ language\ to\ "en"		nastavi¿\ jazyk\ na\ "en"
-menutrans Set\ language\ to\ "en_au"		nastavi¿\ jazyk\ na\ "en_au"
-menutrans Set\ language\ to\ "en_ca"		nastavi¿\ jazyk\ na\ "en_ca"
-menutrans Set\ language\ to\ "en_gb"		nastavi¿\ jazyk\ na\ "en_gb"
-menutrans Set\ language\ to\ "en_nz"		nastavi¿\ jazyk\ na\ "en_nz"
-menutrans Set\ language\ to\ "en_us"		nastavi¿\ jazyk\ na\ "en_us"
-menutrans &Find\ More\ Languages		nájs¿\ viac\ jazykov
-let g:menutrans_set_lang_to =			'nastavi¿ jazyk na'
-menutrans &Show\ File\ Types\ in\ menu		Zobrazi¿\ typy\ súborov\ v\ ponuke
-menutrans &Sponsor/Register		Sponzor/registrácia
 
 let &cpo = s:keepcpo
 unlet s:keepcpo

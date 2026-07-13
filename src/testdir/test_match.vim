@@ -1,7 +1,8 @@
 " Test for :match, :2match, :3match, clearmatches(), getmatches(), matchadd(),
 " matchaddpos(), matcharg(), matchdelete(), and setmatches().
 
-source util/screendump.vim
+source screendump.vim
+source check.vim
 
 function Test_match()
   highlight MyGroup1 term=bold ctermbg=red guibg=red
@@ -306,7 +307,6 @@ func Test_matchaddpos_error()
   " Why doesn't the following error have an error code E...?
   call assert_fails("call matchaddpos('Error', [{}])", 'E290:')
   call assert_equal(-1, matchaddpos('Error', test_null_list()))
-  call assert_equal(-1, matchaddpos('Error', []))
   call assert_fails("call matchaddpos('Error', [1], [], 1)", 'E745:')
   call assert_equal(-1, matchaddpos('Search', [[]]))
   call assert_fails("call matchaddpos('Search', [[{}]])", 'E728:')
@@ -344,7 +344,6 @@ func Test_matchdelete_error()
 endfunc
 
 func Test_matchclear_other_window()
-  CheckScreendump
   CheckRunVimInTerminal
   let buf = OtherWindowCommon()
   call term_sendkeys(buf, ":call clearmatches(winid)\<CR>")
@@ -355,7 +354,6 @@ func Test_matchclear_other_window()
 endfunc
 
 func Test_matchadd_other_window()
-  CheckScreendump
   CheckRunVimInTerminal
   let buf = OtherWindowCommon()
   call term_sendkeys(buf, ":call matchadd('Search', 'Hello', 1, -1, #{window: winid})\<CR>")
@@ -367,7 +365,6 @@ func Test_matchadd_other_window()
 endfunc
 
 func Test_match_in_linebreak()
-  CheckScreendump
   CheckRunVimInTerminal
 
   let lines =<< trim END
@@ -383,7 +380,6 @@ func Test_match_in_linebreak()
 endfunc
 
 func Test_match_with_incsearch()
-  CheckScreendump
   CheckRunVimInTerminal
 
   let lines =<< trim END
@@ -423,7 +419,6 @@ func Test_matchdelete_redraw()
 endfunc
 
 func Test_match_tab_with_linebreak()
-  CheckScreendump
   CheckRunVimInTerminal
 
   let lines =<< trim END
@@ -437,5 +432,6 @@ func Test_match_tab_with_linebreak()
 
   call StopVimInTerminal(buf)
 endfunc
+
 
 " vim: shiftwidth=2 sts=2 expandtab

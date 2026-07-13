@@ -39,18 +39,23 @@ typedef struct s_chastore {
 } chastore_t;
 
 typedef struct s_xrecord {
+	struct s_xrecord *next;
 	char const *ptr;
 	long size;
 	unsigned long ha;
 } xrecord_t;
 
 typedef struct s_xdfile {
-	xrecord_t *recs;
+	chastore_t rcha;
 	long nrec;
+	unsigned int hbits;
+	xrecord_t **rhash;
 	long dstart, dend;
-	bool *changed;
+	xrecord_t **recs;
+	char *rchg;
 	long *rindex;
 	long nreff;
+	unsigned long *ha;
 } xdfile_t;
 
 typedef struct s_xdfenv {

@@ -1,5 +1,7 @@
 " Tests for regexp in utf8 encoding
 
+source shared.vim
+
 func s:equivalence_test()
   let str = "AÀÁÂÃÄÅĀĂĄǍǞǠǺȂȦȺḀẠẢẤẦẨẪẬẮẰẲẴẶ BƁɃḂḄḆ CÇĆĈĊČƇȻḈꞒ DĎĐƊḊḌḎḐḒ EÈÉÊËĒĔĖĘĚȄȆȨɆḔḖḘḚḜẸẺẼẾỀỂỄỆ FƑḞꞘ GĜĞĠĢƓǤǦǴḠꞠ HĤĦȞḢḤḦḨḪⱧ IÌÍÎÏĨĪĬĮİƗǏȈȊḬḮỈỊ JĴɈ KĶƘǨḰḲḴⱩꝀ LĹĻĽĿŁȽḶḸḺḼⱠ MḾṀṂ NÑŃŅŇǸṄṆṈṊꞤ OÒÓÔÕÖØŌŎŐƟƠǑǪǬǾȌȎȪȬȮȰṌṎṐṒỌỎỐỒỔỖỘỚỜỞỠỢ PƤṔṖⱣ QɊ RŔŖŘȐȒɌṘṚṜṞⱤꞦ SŚŜŞŠȘṠṢṤṦṨⱾꞨ TŢŤŦƬƮȚȾṪṬṮṰ UÙÚÛÜŨŪŬŮŰƯǕǙǛǓǗȔȖɄṲṴṶṸṺỤỦỨỪỬỮỰ  VƲṼṾ WŴẀẂẄẆẈ XẊẌ YÝŶŸƳȲɎẎỲỴỶỸ ZŹŻŽƵẐẒẔⱫ aàáâãäåāăąǎǟǡǻȃȧᶏḁẚạảấầẩẫậắằẳẵặⱥ bƀɓᵬᶀḃḅḇ cçćĉċčƈȼḉꞓꞔ dďđɗᵭᶁᶑḋḍḏḑḓ eèéêëēĕėęěȅȇȩɇᶒḕḗḙḛḝẹẻẽếềểễệ fƒᵮᶂḟꞙ gĝğġģǥǧǵɠᶃḡꞡ hĥħȟḣḥḧḩḫẖⱨꞕ iìíîïĩīĭįǐȉȋɨᶖḭḯỉị jĵǰɉ kķƙǩᶄḱḳḵⱪꝁ lĺļľŀłƚḷḹḻḽⱡ mᵯḿṁṃ nñńņňŉǹᵰᶇṅṇṉṋꞥ oòóôõöøōŏőơǒǫǭǿȍȏȫȭȯȱɵṍṏṑṓọỏốồổỗộớờởỡợ pƥᵱᵽᶈṕṗ qɋʠ rŕŗřȑȓɍɽᵲᵳᶉṛṝṟꞧ sśŝşšșȿᵴᶊṡṣṥṧṩꞩ tţťŧƫƭțʈᵵṫṭṯṱẗⱦ uùúûüũūŭůűųǚǖưǔǘǜȕȗʉᵾᶙṳṵṷṹṻụủứừửữự vʋᶌṽṿ wŵẁẃẅẇẉẘ xẋẍ yýÿŷƴȳɏẏẙỳỵỷỹ zźżžƶᵶᶎẑẓẕⱬ"
   let groups = split(str)
@@ -340,7 +342,7 @@ func Test_multibyte_chars()
 endfunc
 
 " check that 'ambiwidth' does not change the meaning of \p
-func Test_regexp_ambiwidth()
+func Test_ambiwidth()
   set regexpengine=1 ambiwidth=single
   call assert_equal(0, match("\u00EC", '\p'))
   set regexpengine=1 ambiwidth=double
@@ -453,7 +455,7 @@ func Run_regexp_multibyte_magic()
   @w
   call assert_equal('k œ̄ṣ́m̥̄ᾱ̆́', getline(18))
 
-  bw!
+  close!
 endfunc
 
 func Test_regexp_multibyte_magic()
@@ -471,7 +473,7 @@ func Test_split_multibyte_to_bytes()
   call setline(1, 'l äö üᾱ̆́')
   s/ \?/ /g
   call assert_equal(' l ä ö ü ᾱ̆́', getline(1))
-  bw!
+  close!
 endfunc
 
 " Test for matchstr() with multibyte characters
@@ -481,7 +483,7 @@ func Test_matchstr_multibyte()
   call assert_equal('בג', matchstr("אבגד", "..", 0, 2))
   call assert_equal('א', matchstr("אבגד", ".", 0, 0))
   call assert_equal('ג', matchstr("אבגד", ".", 4, -1))
-  bw!
+  close!
 endfunc
 
 " Test for 7.4.636
@@ -492,7 +494,7 @@ func Test_search_with_end_offset()
   exe "normal /(/e+\<CR>"
   normal n"ayn
   call assert_equal("a\ncat(", @a)
-  bw!
+  close!
 endfunc
 
 " Check that "^" matches even when the line starts with a combining char
@@ -573,82 +575,5 @@ func Test_match_too_complicated()
   set regexpengine=0
 endfunc
 
-func Test_combining_chars_in_collection()
-  new
-  for i in range(0,2)
-    exe "set re=".i
-    put =['ɔ̃', 'ɔ',  '̃  ã', 'abcd']
-    :%s/[ɔ̃]//
-    call assert_equal(['', '', 'ɔ', '̃  ã', 'abcd'], getline(1,'$'))
-    %d
-  endfor
-  bw!
-endfunc
-
-func Test_search_multibyte_match_ascii()
-  new
-  " Match single 'ſ' and 's'
-  call setline(1,  'das abc heraus abc ſich abc ſind')
-  for i in range(0, 2)
-    exe "set re="..i
-    let ic_match = matchbufline('%', '\c\%u17f', 1, '$')->mapnew({idx, val -> val.text})
-    let noic_match = matchbufline('%', '\C\%u17f', 1, '$')->mapnew({idx, val -> val.text})
-    call assert_equal(['s', 's', 'ſ','ſ'], ic_match, "Ignorecase Regex-engine: " .. &re)
-    call assert_equal(['ſ','ſ'], noic_match, "No-Ignorecase Regex-engine: " .. &re)
-  endfor
-  " Match several 'ſſ' and 'ss'
-  call setline(1,  'das abc herauss abc ſſich abc ſind')
-  for i in range(0, 2)
-    exe "set re="..i
-    let ic_match = matchbufline('%', '\c\%u17f\%u17f', 1, '$')->mapnew({idx, val -> val.text})
-    let noic_match = matchbufline('%', '\C\%u17f\%u17f', 1, '$')->mapnew({idx, val -> val.text})
-    let ic_match2 = matchbufline('%', '\c\%u17f\+', 1, '$')->mapnew({idx, val -> val.text})
-    let noic_match2 = matchbufline('%', '\C\%u17f\+', 1, '$')->mapnew({idx, val -> val.text})
-    let ic_match3 = matchbufline('%', '\c[\u17f]\+', 1, '$')->mapnew({idx, val -> val.text})
-    let noic_match3 = matchbufline('%', '\C[\u17f]\+', 1, '$')->mapnew({idx, val -> val.text})
-
-    call assert_equal(['ss', 'ſſ'], ic_match, "Ignorecase Regex-engine: " .. &re)
-    call assert_equal(['ſſ'], noic_match, "No-Ignorecase Regex-engine: " .. &re)
-    call assert_equal(['s', 'ss', 'ſſ', 'ſ'], ic_match2, "Ignorecase Regex-engine: " .. &re)
-    call assert_equal(['ſſ','ſ'], noic_match2, "No-Ignorecase Regex-engine: " .. &re)
-    call assert_equal(['s', 'ss', 'ſſ', 'ſ'], ic_match3, "Ignorecase Collection Regex-engine: " .. &re)
-    call assert_equal(['ſſ','ſ'], noic_match3, "No-Ignorecase Collection Regex-engine: " .. &re)
-  endfor
-  set re&vim
-  bw!
-endfunc
-
-func Test_replace_multibyte_match_in_multi_lines()
-  new
-  let text = ['ab 1c', 'ab 1c', 'def', '是否 a', '是否 a', 'ghi', '是否a', '是否a', '是否 1', '是否 1']
-  let expected = ['', 'def', '', 'ghi', '', '']
-  for i in range(0, 2)
-    exe "set ignorecase re="..i
-    :%d _
-    call setline(1, text)
-    :%s/\(.\+\)\n\1//g
-    call assert_equal(expected, getline(1, '$'))
-  endfor
-  bw!
-  set ignorecase&vim re&vim
-endfun
-
-func Test_regex_collection_range_with_composing_crash()
-  " Regression test: composing char in collection range caused NFA crash/E874
-  new
-  call setline(1, ['00', '0ֻ', '01'])
-  let patterns = [ '0[0-0ֻ]\@<!','0[0ֻ]\@<!']
-
-  for pat in patterns
-    " Should compile and execute without crash or error
-    for re in range(3)
-      let regex = '\%#=' .. re .. pat
-      call search(regex)
-      call assert_fails($"/{regex}\<cr>", 'E486:')
-    endfor
-  endfor
-
-  bwipe!
-endfunc
 
 " vim: shiftwidth=2 sts=2 expandtab

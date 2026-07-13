@@ -1,6 +1,5 @@
 " LogiPat: Boolean logical pattern matcher
-"   Maintainer:	This runtime file is looking for a new maintainer.
-"   Original Author:  Charles E. Campbell
+"   Author:  Charles E. Campbell
 "   Date:    Apr 04, 2016
 "   Version: 4
 "   Purpose: to do Boolean-logic based regular expression pattern matching

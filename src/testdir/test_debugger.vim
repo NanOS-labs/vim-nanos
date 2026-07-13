@@ -1,16 +1,17 @@
 " Tests for the Vim script debug commands
 
-source util/screendump.vim
+source shared.vim
+source screendump.vim
+source check.vim
 
 CheckRunVimInTerminal
 
 func CheckCWD()
   " Check that the longer lines don't wrap due to the length of the script name
-  " in cwd. Need to subtract by 1 since Vim will still wrap the message if it
-  " just fits.
+  " in cwd
   let script_len = len( getcwd() .. '/Xtest1.vim' )
   let longest_line = len( 'Breakpoint in "" line 1' )
-  if script_len > ( 75 - longest_line - 1 )
+  if script_len > ( 75 - longest_line )
     throw 'Skipped: Your CWD has too many characters'
   endif
 endfunc
@@ -361,73 +362,34 @@ func Test_Debugger_breakadd()
 endfunc
 
 " Test for expression breakpoint set using ":breakadd expr <expr>"
-" FIXME: This doesn't seem to work as documented. The breakpoint is not
-" triggered until the next function call.
 func Test_Debugger_breakadd_expr()
   CheckCWD
 
   let lines =<< trim END
-    func Foo()
-      eval 1
-      eval 2
-    endfunc
-
     let g:Xtest_var += 1
-    call Foo()
-    let g:Xtest_var += 1
-    call Foo()
   END
-  call writefile(lines, 'XbreakExpr.vim', 'D')
+  call writefile(lines, 'XdebugBreakExpr.vim', 'D')
 
   " Start Vim in a terminal
-  let buf = RunVimInTerminal('XbreakExpr.vim', {})
+  let buf = RunVimInTerminal('XdebugBreakExpr.vim', {})
   call s:RunDbgCmd(buf, ':let g:Xtest_var = 10')
   call s:RunDbgCmd(buf, ':breakadd expr g:Xtest_var')
+  call s:RunDbgCmd(buf, ':source %')
   let expected =<< trim eval END
     Oldval = "10"
     Newval = "11"
-    {fnamemodify('XbreakExpr.vim', ':p')}[7]..function Foo
-    line 1: eval 1
+    {fnamemodify('XdebugBreakExpr.vim', ':p')}
+    line 1: let g:Xtest_var += 1
   END
   call s:RunDbgCmd(buf, ':source %', expected)
+  call s:RunDbgCmd(buf, 'cont')
   let expected =<< trim eval END
     Oldval = "11"
     Newval = "12"
-    {fnamemodify('XbreakExpr.vim', ':p')}[9]..function Foo
-    line 1: eval 1
-  END
-  call s:RunDbgCmd(buf, 'cont', expected)
-  call s:RunDbgCmd(buf, 'cont')
-
-  " Check the behavior without the g: prefix.
-  " FIXME: The Oldval and Newval don't look right here.
-  call s:RunDbgCmd(buf, ':breakdel *')
-  call s:RunDbgCmd(buf, ':breakadd expr Xtest_var')
-  let expected =<< trim eval END
-    Oldval = "13"
-    Newval = "(does not exist)"
-    {fnamemodify('XbreakExpr.vim', ':p')}[7]..function Foo
-    line 1: eval 1
+    {fnamemodify('XdebugBreakExpr.vim', ':p')}
+    line 1: let g:Xtest_var += 1
   END
   call s:RunDbgCmd(buf, ':source %', expected)
-  let expected =<< trim eval END
-    {fnamemodify('XbreakExpr.vim', ':p')}[7]..function Foo
-    line 2: eval 2
-  END
-  call s:RunDbgCmd(buf, 'cont', expected)
-  let expected =<< trim eval END
-    Oldval = "14"
-    Newval = "(does not exist)"
-    {fnamemodify('XbreakExpr.vim', ':p')}[9]..function Foo
-    line 1: eval 1
-  END
-  call s:RunDbgCmd(buf, 'cont', expected)
-  let expected =<< trim eval END
-    {fnamemodify('XbreakExpr.vim', ':p')}[9]..function Foo
-    line 2: eval 2
-  END
-  call s:RunDbgCmd(buf, 'cont', expected)
-  call s:RunDbgCmd(buf, 'cont')
 
   call StopVimInTerminal(buf)
 endfunc

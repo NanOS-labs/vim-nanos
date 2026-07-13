@@ -8,6 +8,7 @@ CI:
         - '.github/dependabot.yml'
         - '.github/labeler.yml'
         - '.github/workflows/*'
+        - '.appveyor.yml'
         - '.codecov.yml'
 
 documentation:
@@ -44,7 +45,9 @@ if_perl:
     - changed-files:
       - any-glob-to-any-file:
         - 'src/if_perl.xs'
+        - 'src/if_perlsfio.c'
         - 'src/proto/if_perl.pro'
+        - 'src/proto/if_perlsfio.pro'
         - 'runtime/doc/if_perl.txt'
 
 if_python:
@@ -127,12 +130,9 @@ runtime:
   - all:
     - changed-files:
       - any-glob-to-any-file:
-        - 'runtime/autoload/**/*.vim'
-        - 'runtime/colors/**/*.vim'
-        - 'runtime/compiler/**/*.vim'
-        - 'runtime/ftplugin/**/*.vim'
-        - 'runtime/indent/**/*.vim'
-        - 'runtime/syntax/**/*.vim'
+        - 'runtime/ftplugin'
+        - 'runtime/syntax'
+        - 'runtime/indent'
         - 'runtime/pack/dist/opt/termdebug/plugin/termdebug.vim'
 
 termdebug:
@@ -146,7 +146,7 @@ plugin-netrw:
     - changed-files:
       - any-glob-to-any-file:
         - 'runtime/plugin/netrwPlugin.vim'
-        - 'runtime/pack/dist/opt/netrw/**'
+        - 'runtime/autoload/netrw*'
 
 xxd:
   - all:

@@ -2,9 +2,8 @@
 " Language:    Oblivion Language (obl)
 " Original Creator: Kat <katisntgood@gmail.com>
 " Maintainer:  Kat <katisntgood@gmail.com>
-" Created:     2021 Aug 08
-" Last Change: 2022 Nov 13
-"              2024 May 23 by Riley Bruins <ribru17@gmail.com> ('commentstring')
+" Created:     August 08, 2021
+" Last Change: 13 November 2022
 
 if exists("b:did_ftplugin")
   finish
@@ -21,7 +20,7 @@ noremap <script> <buffer> <silent> ]] <nop>
 noremap <script> <buffer> <silent> [] <nop>
 noremap <script> <buffer> <silent> ][ <nop>
 
-setlocal commentstring=;\ %s
+setlocal commentstring=;%s
 setlocal comments=:;
 
 function s:NextSection(type, backwards, visual)

@@ -7,11 +7,14 @@
  */
 
 /*
- * Win32 machine-dependent things.
+ * Win32 (Windows NT and Windows 95) machine-dependent things.
  */
 
 #include "os_dos.h"		// common MS-DOS and Win32 stuff
-#include <direct.h>		// for _mkdir()
+// cproto fails on missing include files
+#ifndef PROTO
+# include <direct.h>		// for _mkdir()
+#endif
 
 #define BINARY_FILE_IO
 #define USE_EXE_NAME		// use argv[0] for $VIM
@@ -22,18 +25,13 @@
 #ifndef HAVE_MATH_H
 # define HAVE_MATH_H
 #endif
+#define HAVE_STRCSPN
 #ifndef __GNUC__
-# define HAVE_STRICMP
-# define HAVE_STRNICMP
+#define HAVE_STRICMP
+#define HAVE_STRNICMP
 #endif
 #ifndef HAVE_STRFTIME
 # define HAVE_STRFTIME		// guessed
-#endif
-#ifndef HAVE_STRPTIME
-# define HAVE_STRPTIME		// provided by src/strptime.c
-#endif
-#ifndef HAVE_TZSET
-# define HAVE_TZSET		// CRT has tzset() / _tzset()
 #endif
 #define HAVE_MEMSET
 #ifndef HAVE_LOCALE_H
@@ -86,18 +84,19 @@
 #ifndef COBJMACROS
 # define COBJMACROS	// For OLE: Enable "friendlier" access to objects
 #endif
-
+#ifndef PROTO
 // Must include winsock2.h before windows.h since it conflicts with winsock.h
 // (included in windows.h).
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#include <windows.h>
+# include <winsock2.h>
+# include <ws2tcpip.h>
+# include <windows.h>
 
 // Weird: rpcndr.h defines "small" to "char", which causes trouble
 #undef small
 
-#ifndef SM_CXPADDEDBORDER
-# define SM_CXPADDEDBORDER     92
+# ifndef SM_CXPADDEDBORDER
+#  define SM_CXPADDEDBORDER     92
+# endif
 #endif
 
 typedef void (*sighandler_T)(int, int);
@@ -230,10 +229,3 @@ Trace(char *pszFormat, ...);
 #endif
 #define mch_getenv(x) (char_u *)getenv((char *)(x))
 #define vim_mkdir(x, y) mch_mkdir(x)
-
-// Windows Version
-#define MAKE_VER(major, minor, build) \
-    (((major) << 24) | ((minor) << 16) | (build))
-
-// The Windows CRT does not declare strptime(); Vim provides it in strptime.c.
-char *strptime(const char *buf, const char *fmt, struct tm *tm);

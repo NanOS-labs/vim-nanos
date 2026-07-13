@@ -326,18 +326,6 @@ static int movecursor(VTermPos pos, VTermPos oldpos UNUSED, int visible UNUSED, 
   return 1;
 }
 
-static int want_premove = 0;
-static int premove(VTermRect rect, void *user UNUSED)
-{
-  if(!want_premove)
-    return 0;
-
-  printf("premove %d..%d,%d..%d\n",
-      rect.start_row, rect.end_row, rect.start_col, rect.end_col);
-
-  return 1;
-}
-
 static int want_scrollrect = 0;
 static int scrollrect(VTermRect rect, int downward, int rightward, void *user UNUSED)
 {
@@ -521,7 +509,6 @@ VTermStateCallbacks state_cbs = {
   NULL, // resize
   state_setlineinfo, // setlineinfo
   state_sb_clear, // sb_clear
-  premove, // premove
 };
 
 static int selection_set(VTermSelectionMask mask, VTermStringFragment frag, void *user UNUSED)
@@ -603,7 +590,7 @@ static int screen_damage(VTermRect rect, void *user UNUSED)
 }
 
 static int want_screen_scrollback = 0;
-static int screen_sb_pushline4(int cols, const VTermScreenCell *cells, int continuation, void *user UNUSED)
+static int screen_sb_pushline(int cols, const VTermScreenCell *cells, void *user UNUSED)
 {
   int eol;
   int c;
@@ -615,7 +602,7 @@ static int screen_sb_pushline4(int cols, const VTermScreenCell *cells, int conti
   while(eol && !cells[eol-1].chars[0])
     eol--;
 
-  printf("sb_pushline %d%s =", cols, continuation ? " cont" : "");
+  printf("sb_pushline %d =", cols);
   for(c = 0; c < eol; c++)
     printf(" %02X", cells[c].chars[0]);
   printf("\n");
@@ -660,10 +647,9 @@ VTermScreenCallbacks screen_cbs = {
   settermprop, // settermprop
   NULL, // bell
   NULL, // resize
-  NULL, // sb_pushline
+  screen_sb_pushline, // sb_pushline
   screen_sb_popline, // sb_popline
   screen_sb_clear, // sb_clear
-  screen_sb_pushline4, // sb_pushline4
 };
 
 int main(int argc UNUSED, char **argv UNUSED)
@@ -703,7 +689,6 @@ int main(int argc UNUSED, char **argv UNUSED)
       if(!state) {
         state = vterm_obtain_state(vt);
         vterm_state_set_callbacks(state, &state_cbs, NULL);
-        vterm_state_callbacks_has_premove(state);
         /* In some tests we want to check the behaviour of overflowing the
          * buffer, so make it nicely small
          */
@@ -727,9 +712,6 @@ int main(int argc UNUSED, char **argv UNUSED)
           break;
         case 's':
           want_scrollrect = sense;
-          break;
-        case 'P':
-          want_premove = sense;
           break;
         case 'm':
           want_moverect = sense;
@@ -758,7 +740,6 @@ int main(int argc UNUSED, char **argv UNUSED)
       if(!screen)
         screen = vterm_obtain_screen(vt);
       vterm_screen_set_callbacks(screen, &screen_cbs, NULL);
-      vterm_screen_callbacks_has_pushline4(screen);
 
       while(line[i] == ' ')
         i++;

@@ -2,7 +2,6 @@
 " Language:             calendar(1) input file
 " Previous Maintainer:  Nikolai Weibull <now@bitwi.se>
 " Latest Revision:      2008-07-09
-"                       2024-06-02 by Riley Bruins <ribru17@gmail.com> ('commentstring')
 
 if exists("b:did_ftplugin")
   finish
@@ -14,7 +13,7 @@ set cpo&vim
 
 let b:undo_ftplugin = "setl com< cms< inc< fo<"
 
-setlocal comments=s1:/*,mb:*,ex:*/ commentstring=/*\ %s\ */ include&
+setlocal comments=s1:/*,mb:*,ex:*/ commentstring& include&
 setlocal formatoptions-=t formatoptions+=croql
 
 let &cpo = s:cpo_save

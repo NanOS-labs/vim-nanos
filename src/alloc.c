@@ -17,7 +17,7 @@
  * Various routines dealing with allocation and deallocation of memory.
  */
 
-#if defined(MEM_PROFILE)
+#if defined(MEM_PROFILE) || defined(PROTO)
 
 # define MEM_SIZES  8200
 static long_u mem_allocs[MEM_SIZES];
@@ -151,7 +151,7 @@ alloc(size_t size)
     return lalloc(size, TRUE);
 }
 
-#if defined(FEAT_QUICKFIX)
+#if defined(FEAT_QUICKFIX) || defined(PROTO)
 /*
  * alloc() with an ID for alloc_fail().
  */
@@ -293,19 +293,19 @@ theend:
 /*
  * lalloc() with an ID for alloc_fail().
  */
-#if defined(FEAT_SIGNS)
+#if defined(FEAT_SIGNS) || defined(PROTO)
     void *
 lalloc_id(size_t size, int message, alloc_id_T id UNUSED)
 {
-# ifdef FEAT_EVAL
+#ifdef FEAT_EVAL
     if (alloc_fail_id == id && alloc_does_fail(size))
 	return NULL;
-# endif
+#endif
     return (lalloc(size, message));
 }
 #endif
 
-#if defined(MEM_PROFILE)
+#if defined(MEM_PROFILE) || defined(PROTO)
 /*
  * realloc() with memory profiling.
  */
@@ -350,7 +350,7 @@ do_outofmem_msg(size_t size)
 	mch_exit(123);
 }
 
-#if defined(EXITFREE)
+#if defined(EXITFREE) || defined(PROTO)
 
 /*
  * Free everything that we allocated.
@@ -475,10 +475,6 @@ free_all_mem(void)
     free_quickfix();
 # endif
 
-# ifdef FEAT_IMAGE_SIXEL
-    sixel_free_all();
-# endif
-
     // Close all script inputs.
     close_all_scripts();
 
@@ -500,9 +496,7 @@ free_all_mem(void)
 
 	set_bufref(&bufref, buf);
 	nextbuf = buf->b_next;
-	// All windows were freed.  Reset b_nwindows so buffers can be wiped.
-	buf->b_nwindows = 0;
-	close_buffer(NULL, buf, DOBUF_WIPE, FALSE, FALSE, FALSE);
+	close_buffer(NULL, buf, DOBUF_WIPE, FALSE, FALSE);
 	if (bufref_valid(&bufref))
 	    buf = nextbuf;	// didn't work, try next one
 	else
@@ -651,7 +645,7 @@ ga_clear_strings(garray_T *gap)
     ga_clear(gap);
 }
 
-#if defined(FEAT_EVAL)
+#if defined(FEAT_EVAL) || defined(PROTO)
 /*
  * Copy a growing array that contains a list of strings.
  */
@@ -750,8 +744,6 @@ ga_grow_inner(garray_T *gap, int n)
     if (n < gap->ga_len / 2)
 	n = gap->ga_len / 2;
 
-    if (n > 0 && (size_t)(gap->ga_len + n) > SIZE_MAX / gap->ga_itemsize)
-	return FAIL;
     new_len = (size_t)gap->ga_itemsize * (gap->ga_len + n);
     pp = vim_realloc(gap->ga_data, new_len);
     if (pp == NULL)
@@ -778,10 +770,7 @@ ga_concat_strings(garray_T *gap, char *sep)
     char_u	*p;
 
     for (i = 0; i < gap->ga_len; ++i)
-	len += (int)STRLEN(((char_u **)(gap->ga_data))[i]);
-
-    if (gap->ga_len > 1)
-	len += (gap->ga_len - 1) * sep_len;
+	len += (int)STRLEN(((char_u **)(gap->ga_data))[i]) + sep_len;
 
     s = alloc(len + 1);
     if (s == NULL)
@@ -885,7 +874,8 @@ ga_append(garray_T *gap, int c)
     return OK;
 }
 
-#if (defined(UNIX) && !defined(USE_SYSTEM)) || defined(MSWIN)
+#if (defined(UNIX) && !defined(USE_SYSTEM)) || defined(MSWIN) \
+	|| defined(PROTO)
 /*
  * Append the text in "gap" below the cursor line and clear "gap".
  */

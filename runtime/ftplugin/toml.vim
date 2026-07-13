@@ -3,7 +3,7 @@
 " Homepage:    https://github.com/cespare/vim-toml
 " Maintainer:  Aman Verma
 " Author:      Lily Ballard <lily@ballards.net>
-" Last Change: May 5, 2025
+" Last Change: Sep 21, 2021
 
 if exists('b:did_ftplugin')
   finish
@@ -12,11 +12,10 @@ let b:did_ftplugin = 1
 
 let s:save_cpo = &cpo
 set cpo&vim
-let b:undo_ftplugin = 'setlocal commentstring< comments< iskeyword<'
+let b:undo_ftplugin = 'setlocal commentstring< comments<'
 
 setlocal commentstring=#\ %s
 setlocal comments=:#
-setlocal iskeyword+=-
 
 let &cpo = s:save_cpo
 unlet s:save_cpo

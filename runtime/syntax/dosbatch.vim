@@ -2,12 +2,11 @@
 " Language:	MS-DOS/Windows batch file (with NT command extensions)
 " Maintainer:	Mike Williams <mrmrdubya@gmail.com>
 " Filenames:    *.bat
-" Last Change:	3rd February 2024
-" 2024 Aug 14 by Vim Project: improve syntax (#15453)
+" Last Change:	12th February 2023
 "
 " Options Flags:
 " dosbatch_cmdextversion	- 1 = Windows NT, 2 = Windows 2000 [default]
-" dosbatch_colons_comment       - any value to allow :: comments in code blocks
+" dosbatch_colons_comment       - any value to treat :: as comment line
 "
 
 " quit when a syntax file was already loaded
@@ -46,7 +45,7 @@ syn match dosbatchString	"\<echo\([^)>|]\|\^\@<=[)>|]\)*"lc=4 contains=dosbatchV
 syn match dosbatchEchoOperator  "\<echo\s\+\(on\|off\)\s*$"lc=4
 
 " For embedded commands
-syn match dosbatchCmd		"(\s*'[^']*'"lc=1 contains=dosbatchString,dosbatchVariable,dosBatchArgument,@dosbatchNumber,dosbatchImplicit,dosbatchStatement,dosbatchConditional,dosbatchRepeat,dosbatchOperator,dosbatchIfOperator
+syn match dosbatchCmd		"(\s*'[^']*'"lc=1 contains=dosbatchString,dosbatchVariable,dosBatchArgument,@dosbatchNumber,dosbatchImplicit,dosbatchStatement,dosbatchConditional,dosbatchRepeat,dosbatchOperator
 
 " Numbers - surround with ws to not include in dir and filenames
 syn match dosbatchInteger       "[[:space:]=(/:,!~-]\d\+"lc=1
@@ -75,7 +74,7 @@ syn match dosbatchSet		"\s\h\w*[+-]\==\{-1}" contains=dosbatchIdentifier,dosbatc
 
 " Args to bat files and for loops, etc
 syn match dosbatchArgument	"%\(\d\|\*\)"
-syn match dosbatchArgument	"%%[a-z]\>"
+syn match dosbatchArgument	"%[a-z]\>"
 if dosbatch_cmdextversion == 1
   syn match dosbatchArgument	"%\~[fdpnxs]\+\(\($PATH:\)\=[a-z]\|\d\)\>"
 else
@@ -89,24 +88,18 @@ syn match dosbatchLabel		"\<goto\s\+\h\w*\>"lc=4
 syn match dosbatchLabel		":\h\w*\>"
 
 " Comments - usual rem but also two colons as first non-space is an idiom
-syn match dosbatchRemComment	"^rem\($\|\s.*$\)"lc=3 contains=dosbatchTodo,dosbatchSpecialChar,@dosbatchNumber,dosbatchVariable,dosbatchArgument,@Spell
-syn match dosbatchRemComment	"^@rem\($\|\s.*$\)"lc=4 contains=dosbatchTodo,@dosbatchNumber,dosbatchVariable,dosbatchArgument,@Spell
-syn match dosbatchRemComment	"\srem\($\|\s.*$\)"lc=4 contains=dosbatchTodo,dosbatchSpecialChar,@dosbatchNumber,dosbatchVariable,dosbatchArgument,@Spell
-syn match dosbatchRemComment	"\s@rem\($\|\s.*$\)"lc=5 contains=dosbatchTodo,@dosbatchNumber,dosbatchVariable,dosbatchArgument,@Spell
-syn match dosbatchColonComment	"\s*:\s*:.*$" contains=dosbatchTodo,dosbatchSpecialChar,@dosbatchNumber,dosbatchVariable,dosbatchArgument,@Spell
-
-" Commands code blocks
-syn cluster dosbatchCodeBlockComment contains=dosbatchRemComment
+syn match dosbatchComment	"^rem\($\|\s.*$\)"lc=3 contains=dosbatchTodo,dosbatchSpecialChar,@dosbatchNumber,dosbatchVariable,dosbatchArgument,@Spell
+syn match dosbatchComment	"^@rem\($\|\s.*$\)"lc=4 contains=dosbatchTodo,@dosbatchNumber,dosbatchVariable,dosbatchArgument,@Spell
+syn match dosbatchComment	"\srem\($\|\s.*$\)"lc=4 contains=dosbatchTodo,dosbatchSpecialChar,@dosbatchNumber,dosbatchVariable,dosbatchArgument,@Spell
+syn match dosbatchComment	"\s@rem\($\|\s.*$\)"lc=5 contains=dosbatchTodo,@dosbatchNumber,dosbatchVariable,dosbatchArgument,@Spell
 if exists("dosbatch_colons_comment")
-  syn cluster dosbatchCodeBlockComment add=dosbatchColonComment
+  syn match dosbatchComment	"\s*:\s*:.*$" contains=dosbatchTodo,dosbatchSpecialChar,@dosbatchNumber,dosbatchVariable,dosbatchArgument,@Spell
 else
-  syn match dosbatchColonCommentErr contained "\s*:\s*:.*$"
+  syn match dosbatchError       "\s*:\s*:.*$"
 endif
-syn match dosbatchColonCommentErr contained "\s*:\s*:[^)]*\(\(\n\s*\)\?)\)\@="
-syn region dosbatchCodeBlock	transparent start=+(+ end=+)+ contains=dosbatchString,dosbatchVariable,dosBatchArgument,@dosbatchNumber,dosbatchImplicit,dosbatchStatement,dosbatchConditional,dosbatchRepeat,dosbatchOperator,dosbatchIfOperator,@dosbatchCodeBlockComment,dosbatchColonCommentErr,dosbatchCodeBlock
-syn match dosbatchCodeBlockErr	")"
 
-syn sync match dosbatchSyncCodeBlock grouphere NONE "^)\s*$"
+" Comments in ()'s - still to handle spaces before rem
+syn match dosbatchComment	"(rem\([^)]\|\^\@<=)\)*"lc=4 contains=dosbatchTodo,@dosbatchNumber,dosbatchVariable,dosbatchArgument,@Spell
 
 syn keyword dosbatchImplicit    append assoc at attrib break cacls cd chcp chdir
 syn keyword dosbatchImplicit    chkdsk chkntfs cls cmd color comp compact convert copy
@@ -123,8 +116,6 @@ syn keyword dosbatchImplicit    vol xcopy
 
 hi def link dosbatchTodo	Todo
 hi def link dosbatchError	Error
-hi def link dosbatchCodeBlockErr dosbatchError
-hi def link dosbatchColonCommentErr dosbatchError
 
 hi def link dosbatchStatement	Statement
 hi def link dosbatchCommands	dosbatchStatement
@@ -149,9 +140,6 @@ hi def link dosbatchBinary	dosbatchNumber
 hi def link dosbatchOctal	dosbatchNumber
 
 hi def link dosbatchComment	Comment
-hi def link dosbatchRemComment	dosbatchComment
-hi def link dosbatchColonComment dosbatchComment
-
 hi def link dosbatchImplicit	Function
 
 hi def link dosbatchSwitch	Special

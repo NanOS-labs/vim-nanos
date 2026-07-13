@@ -249,15 +249,14 @@ int main( int argc, char *argv[] )
 
 	    stay = (echogets(Line2, echo) != NULL);
 	    while ( stay && (Line2[0] == '|') )
-	      { size_t n;
-		for (p=&Line2[2]; (*p) && (isspace((unsigned char)*p)); p++);
-		n = strlen(Reason);
-		snprintf( Reason + n, LINELENGTH - n, ": %s", p );
+	      { for (p=&Line2[2]; (*p) && (isspace(*p)); p++);
+		strcat( Reason, ": " );
+		strcat( Reason, p );
 		Line2[0] = 0;
 		stay = (echogets(Line2, echo) != NULL);
 	      }
 	    prefetch = 1;
-	    snprintf( Line, LINELENGTH, "%s", Line2 );
+	    strcpy( Line, Line2 );
 	    break;
 	  case COMPILER_IRIX:
 	    Col       = 1;
@@ -266,7 +265,7 @@ int main( int argc, char *argv[] )
 	    ok	      = 0;
 	    if ( !strncmp(Line, "cfe: ", 5) )
 	      { p = &Line[5];
-		Severity = tolower((unsigned char)*p);
+		Severity = tolower(*p);
 		p = strchr( &Line[5], ':' );
 		if (p == NULL)
 		  { ok = 0;
@@ -292,8 +291,8 @@ int main( int argc, char *argv[] )
 			prefetch = 0;
 		      }
 		     else
-		      { size_t n = strlen(Line);
-			snprintf( Line + n, LINELENGTH - n, "\n%s", Line2 );
+		      { strcat( Line, "\n" );
+			strcat( Line, Line2 );
 		      }
 		  }
 	      }
@@ -314,7 +313,7 @@ int main( int argc, char *argv[] )
 	}
        else
 	{
-	  for (p=Reason; (*p) && (isspace((unsigned char)*p)); p++);
+	  for (p=Reason; (*p) && (isspace(*p)); p++);
 	  if ( BasePath[CWDlen] == 0 )
 	      printf( "%s:%lu:%lu:%c:%s\n", FileName, Row, Col, Severity, p );
 	  else

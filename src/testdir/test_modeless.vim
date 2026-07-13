@@ -1,10 +1,12 @@
 " Test for modeless selection
 
 " This only works for Unix in a terminal
+source check.vim
 CheckNotGui
 CheckUnix
 
-source util/mouse.vim
+source shared.vim
+source mouse.vim
 
 " Test for modeless characterwise selection (single click)
 func Test_modeless_characterwise_selection()
@@ -217,19 +219,6 @@ func Test_modeless_characterwise_selection()
     let keys ..= "\<CR>"
     call feedkeys(keys, "x")
     call assert_equal("bar", @*)
-    set clipboard&
-
-    " Test for 'clipboard' set to 'autoselectplus' to automatically copy the
-    " modeless selection to the '+' clipboard.
-    set clipboard=autoselectplus
-    let @* = 'clean'
-    let keys = ":"
-    let keys ..= MouseLeftClickCode(2, 5)
-    let keys ..= MouseLeftDragCode(2, 7)
-    let keys ..= MouseLeftReleaseCode(2, 7)
-    let keys ..= "\<CR>"
-    call feedkeys(keys, "x")
-    call assert_equal("bar", @+)
     set clipboard&
 
     " quadruple click should start characterwise selectmode

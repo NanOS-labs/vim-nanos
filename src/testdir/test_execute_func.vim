@@ -1,6 +1,9 @@
 " test execute()
 
-import './util/vim9.vim' as v9
+source view_util.vim
+source check.vim
+import './vim9.vim' as v9
+source term_util.vim
 
 func NestedEval()
   let nested = execute('echo "nested\nlines"')
@@ -199,30 +202,6 @@ func Test_execute_func_with_null()
     call assert_fails('call execute(test_null_job())', 'E908:')
     call assert_fails('call execute(test_null_channel())', 'E908:')
   endif
-endfunc
-
-func Test_win_execute_tabpagewinnr()
-  belowright split
-  tab split
-  belowright split
-  call assert_equal(2, tabpagewinnr(1))
-
-  tabprevious
-  wincmd p
-  call assert_equal(1, tabpagenr())
-  call assert_equal(1, tabpagewinnr(1))
-  call assert_equal(2, tabpagewinnr(2))
-
-  call win_execute(win_getid(1, 2),
-        \      'call assert_equal(2, tabpagenr())'
-        \ .. '| call assert_equal(1, tabpagewinnr(1))'
-        \ .. '| call assert_equal(1, tabpagewinnr(2))')
-
-  call assert_equal(1, tabpagenr())
-  call assert_equal(1, tabpagewinnr(1))
-  call assert_equal(2, tabpagewinnr(2))
-
-  %bwipe!
 endfunc
 
 " vim: shiftwidth=2 sts=2 expandtab

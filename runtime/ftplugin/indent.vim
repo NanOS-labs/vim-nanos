@@ -3,7 +3,6 @@
 " Maintainer:		Doug Kearns <dougkearns@gmail.com>
 " Previous Maintainer:	Nikolai Weibull <now@bitwi.se>
 " Latest Revision:	2008-07-09
-"			2024-06-02 by Riley Bruins <ribru17@gmail.com> ('commentstring')
 
 if exists("b:did_ftplugin")
   finish
@@ -15,7 +14,7 @@ set cpo&vim
 
 let b:undo_ftplugin = "setl com< cms< fo<"
 
-setlocal comments=s1:/*,mb:*,ex:*/ commentstring=/*\ %s\ */
+setlocal comments=s1:/*,mb:*,ex:*/ commentstring&
 setlocal formatoptions-=t formatoptions+=croql
 
 let &cpo = s:cpo_save

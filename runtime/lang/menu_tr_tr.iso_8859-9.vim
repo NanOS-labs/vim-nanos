@@ -196,9 +196,9 @@ menutrans Set\ '&filetype'\ too	'filetype'\ Ýçin\ &de\ Ayarla
 menutrans &Off				&Kapat
 menutrans &Manual			&El\ Ýle
 menutrans A&utomatic			&Otomatik
-menutrans On/Off\ for\ &This\ File	&Bu\ Dosya\ için\ Aç/Kapat
-menutrans Co&lor\ Test			&Renk\ Sýnamasý
-menutrans &Highlight\ Test		&Vurgu\ Sýnamasý
+menutrans On/Off\ for\ &This\ File	&Bu\ Dosya\ Ýçin\ Aç/Kapat
+menutrans Co&lor\ Test			&Renk\ Testi
+menutrans &Highlight\ Test		&Vurgulama\ Testi
 menutrans &Convert\ to\ HTML		&HTML'ye\ Dönüþtür
 
 " Buffers menu

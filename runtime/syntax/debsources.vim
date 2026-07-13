@@ -2,7 +2,7 @@
 " Language:     Debian sources.list
 " Maintainer:   Debian Vim Maintainers
 " Former Maintainer: Matthijs Mohlmann <matthijs@cacholong.nl>
-" Last Change: 2024 Jan 30
+" Last Change: 2023 Oct 11
 " URL: https://salsa.debian.org/vim-team/vim-debian/blob/main/syntax/debsources.vim
 
 " Standard syntax initialization
@@ -14,9 +14,9 @@ endif
 syn case match
 
 " A bunch of useful keywords
-syn match debsourcesType               /\<\(deb-src\|deb\)\>/ contained
-syn match debsourcesFreeComponent      /\<\(main\|universe\)\>/ contained
-syn match debsourcesNonFreeComponent   /\<\(contrib\|non-free-firmware\|non-free\|restricted\|multiverse\)\>/ contained
+syn match debsourcesType               /\(deb-src\|deb\)/
+syn match debsourcesFreeComponent      /\(main\|universe\)/
+syn match debsourcesNonFreeComponent   /\(contrib\|non-free-firmware\|non-free\|restricted\|multiverse\)/
 
 " Match comments
 syn match debsourcesComment        /#.*/  contains=@Spell
@@ -33,6 +33,7 @@ unlet g:debSharedUnsupportedVersions
 " Match uri's
 syn match debsourcesUri            '\(https\?://\|ftp://\|[rs]sh://\|debtorrent://\|\(cdrom\|copy\|file\):\)[^' 	<>"]\+'
 syn region debsourcesLine start="^" end="$" contains=debsourcesType,debsourcesFreeComponent,debsourcesNonFreeComponent,debsourcesComment,debsourcesUri,debsourcesDistrKeyword,debsourcesUnsupportedDistrKeyword oneline
+
 
 " Associate our matches and regions with pretty colours
 hi def link debsourcesType                    Statement

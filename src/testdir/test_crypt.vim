@@ -1,5 +1,7 @@
 " Tests for encryption.
 
+source shared.vim
+source check.vim
 CheckFeature cryptv
 
 " Use the xxd command from:
@@ -342,7 +344,7 @@ func Test_uncrypt_xchacha20_3_persistent_undo()
     " should fail
     norm! u
     call assert_match('Already at oldest change', execute(':1mess'))
-    call assert_fails('verbose rundo ' .. fnameescape(ufile), 'E822:')
+    call assert_fails('verbose rundo ' .. fnameescape(ufile), 'E822')
     bw!
     set undolevels& cryptmethod& undofile&
     call delete('Xcrypt_sodium_undo.txt')
@@ -355,8 +357,8 @@ func Test_encrypt_xchacha20_missing()
     return
   endif
   sp Xcrypt_sodium_undo.txt
-  call assert_fails(':set cryptmethod=xchacha20', 'E474:')
-  call assert_fails(':set cryptmethod=xchacha20v2', 'E474:')
+  call assert_fails(':set cryptmethod=xchacha20', 'E474')
+  call assert_fails(':set cryptmethod=xchacha20v2', 'E474')
   bw!
   set cm&
 endfunc
@@ -398,16 +400,16 @@ func Test_crypt_set_key_changes_buffer()
   call assert_fails(":q", "E37:")
   w
   set key=anotherkey
-  call assert_fails(":bw", 'E89: No write since last change for buffer')
+  call assert_fails(":bw")
   w
   call feedkeys(":X\<CR>foobar\<CR>foobar\<CR>", 'xt')
-  call assert_fails(":bw", 'E89: No write since last change for buffer')
+  call assert_fails(":bw")
   w
   let winnr = winnr()
   wincmd p
   call setwinvar(winnr, '&key', 'yetanotherkey')
   wincmd p
-  call assert_fails(":bw", 'E89: No write since last change for buffer')
+  call assert_fails(":bw")
   w
 
   set cryptmethod&
@@ -456,38 +458,6 @@ func Test_crypt_set_key_disallow_append_subtract()
 
   call assert_false(&modified)
   set key=
-  bwipe!
-endfunc
-
-" Test unencrypted an empty file
-func Test_uncrypt_empty()
-  CheckFeature sodium
-
-  let hex =<< trim END
-  00000000: 5669 6d43 7279 7074 7e30 3521 f02f 52ed  VimCrypt~05!./R.
-  00000010: adc3 e5f3 e06c 2fc8 3ce3 ffde d48b 95fe  .....l/.<.......
-  00000020: 341e 74f7 0200 0000 0000 0000 0000 0004  4.t.............
-  00000030: 0000 0000 0200 0000                      ........
-  END
-
-  call Uncrypt_stable_xxd('xchacha20v2', hex, "vim", [""], 0)
-endfunc
-
-" Regression test for issue #19425
-func Test_crypt_off_by_one()
-  CheckFeature sodium
-
-  set cryptmethod=xchacha20v2
-
-  call feedkeys(":split samples/crypt_utf8_test.txt\<CR>12345678\<CR>", 'xt')
-
-  let actual = getline(1, '$')
-
-  let expected = readfile("samples/uncrypt_utf8_test.txt")
-
-  call assert_equal(expected, actual)
-
-  set key= cryptmethod&
   bwipe!
 endfunc
 

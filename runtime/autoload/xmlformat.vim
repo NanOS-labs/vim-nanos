@@ -1,5 +1,5 @@
 " Vim plugin for formatting XML
-" Last Change: 2023 March 15th
+" Last Change: 2020 Jan 06
 "     Version: 0.3
 "      Author: Christian Brabandt <cb@256bit.org>
 "  Repository: https://github.com/chrisbra/vim-xml-ftplugin
@@ -37,17 +37,13 @@ func! xmlformat#Format() abort
     " Keep empty input lines?
     if empty(line)
       call add(result, '')
-      let current += 1
       continue
     elseif line !~# '<[/]\?[^>]*>'
-      let nextmatch = match(list, '^\s*$\|<[/]\?[^>]*>', current)
-      if nextmatch > -1
-        let lineEnd = nextmatch
-      else
-        let lineEnd = len(list)
+      let nextmatch = match(list, '<[/]\?[^>]*>', current)
+      if nextmatch > -1 
+        let line .= ' '. join(list[(current + 1):(nextmatch-1)], " ")
+        call remove(list, current+1, nextmatch-1)
       endif
-      let line .= ' '. join(list[(current + 1):(lineEnd-1)], " ")
-      call remove(list, current+1, lineEnd-1)
     endif
     " split on `>`, but don't split on very first opening <
     " this means, items can be like ['<tag>', 'tag content</tag>']
@@ -83,13 +79,9 @@ func! xmlformat#Format() abort
           if s:EndTag(t[1])
             call s:DecreaseIndent()
           endif
-          let result+=s:FormatContent(t[1:])
-          if s:IsTag(t[1])
-            let lastitem = t[1]
-            continue
-          endif
-        elseif s:IsComment(item)
-          let result+=s:FormatContent([item])
+          "for y in t[1:]
+            let result+=s:FormatContent(t[1:])
+          "endfor
         else
           call add(result, s:Indent(item))
         endif
@@ -102,7 +94,7 @@ func! xmlformat#Format() abort
   if !empty(result)
     let lastprevline = getline(v:lnum + count_orig)
     let delete_lastline = v:lnum + count_orig - 1 == line('$')
-    exe 'silent ' .. v:lnum. ",". (v:lnum + count_orig - 1). 'd'
+    exe v:lnum. ",". (v:lnum + count_orig - 1). 'd'
     call append(v:lnum - 1, result)
     " Might need to remove the last line, if it became empty because of the
     " append() call

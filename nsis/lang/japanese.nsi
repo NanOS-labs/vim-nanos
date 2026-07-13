@@ -3,7 +3,6 @@
 # japanese.nsi: Japanese language strings for gvim NSIS installer.
 #
 # Locale ID    : 1041
-# Locale Name  : ja
 # fileencoding : UTF-8
 # Author       : Ken Takata
 
@@ -26,20 +25,6 @@ LangString ^SpaceRequired    ${LANG_JAPANESE} \
 # Fix another NSIS Japanese translation. The access key was missing.
 LangString ^InstallBtn       ${LANG_JAPANESE} \
         "インストール(&I)"
-
-##############################################################################
-# Translated license file for the license page                            {{{1
-##############################################################################
-
-LicenseLangString page_lic_file 0 "..\lang\LICENSE.nsis.txt"
-#LicenseLangString page_lic_file ${LANG_JAPANESE} "..\lang\LICENSE.ja.txt"
-
-##############################################################################
-# Translated README.txt file, which is opened after installation          {{{1
-##############################################################################
-
-LangString vim_readme_file 0 "README.txt"
-#LangString vim_readme_file ${LANG_JAPANESE} "README.jax.txt"
 
 ##############################################################################
 # MUI Configuration Strings                                               {{{1

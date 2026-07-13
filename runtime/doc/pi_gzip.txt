@@ -1,7 +1,7 @@
-*pi_gzip.txt*	For Vim version 9.2.  Last change: 2026 Feb 14
+*pi_gzip.txt*   For Vim version 9.1.  Last change: 2023 Nov 14
 
 
-		  VIM REFERENCE MANUAL	  by Bram Moolenaar
+		  VIM REFERENCE MANUAL    by Bram Moolenaar
 
 
 Editing compressed files with Vim		*gzip* *bzip2* *compress*
@@ -28,14 +28,12 @@ The plugin installs autocommands to intercept reading and writing of files
 with these extensions:
 
 	extension	compression ~
-	*.bz2		bzip2
-	*.bz3		bzip3
+	*.Z		compress (Lempel-Ziv)
 	*.gz		gzip
-	*.lz		lzip
-	*.lz4		lz4
+	*.bz2		bzip2
 	*.lzma		lzma
 	*.xz		xz
-	*.Z		compress (Lempel-Ziv)
+	*.lz		lzip
 	*.zst		zstd
 
 That's actually the only thing you need to know.  There are no options.

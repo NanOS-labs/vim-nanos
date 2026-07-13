@@ -1,8 +1,10 @@
 " Tests for setting 'buftype' to "prompt"
 
+source check.vim
 CheckFeature channel
 
-source util/screendump.vim
+source shared.vim
+source screendump.vim
 
 func CanTestPromptBuffer()
   " We need to use a terminal window to be able to feed keys without leaving
@@ -266,16 +268,8 @@ func Test_prompt_appending_while_hidden()
       endfunc
       call prompt_setcallback(bufnr(), function('s:TextEntered'))
 
-      func DoAppend(cmd_before = '')
-        exe a:cmd_before
+      func DoAppend()
         call appendbufline('prompt', '$', 'Test')
-        return ''
-      endfunc
-
-      autocmd User SwitchTabPages tabprevious | tabnext
-      func DoAutoAll(cmd_before = '')
-        exe a:cmd_before
-        doautoall User SwitchTabPages
         return ''
       endfunc
   END
@@ -288,77 +282,18 @@ func Test_prompt_appending_while_hidden()
   call TermWait(buf)
 
   call term_sendkeys(buf, "exit\<CR>")
-  call WaitForAssert({-> assert_notmatch('-- .* --', term_getline(buf, 10))})
+  call WaitForAssert({-> assert_notmatch('-- INSERT --', term_getline(buf, 10))})
 
   call term_sendkeys(buf, ":call DoAppend()\<CR>")
-  call WaitForAssert({-> assert_notmatch('-- .* --', term_getline(buf, 10))})
+  call WaitForAssert({-> assert_notmatch('-- INSERT --', term_getline(buf, 10))})
 
   call term_sendkeys(buf, "i")
-  call WaitForAssert({-> assert_match('^-- INSERT --', term_getline(buf, 10))})
+  call WaitForAssert({-> assert_match('-- INSERT --', term_getline(buf, 10))})
 
   call term_sendkeys(buf, "\<C-R>=DoAppend()\<CR>")
-  call WaitForAssert({-> assert_match('^-- INSERT --', term_getline(buf, 10))})
+  call WaitForAssert({-> assert_match('-- INSERT --', term_getline(buf, 10))})
 
-  call term_sendkeys(buf, "\<C-R>=DoAppend('stopinsert')\<CR>")
-  call WaitForAssert({-> assert_notmatch('-- .* --', term_getline(buf, 10))})
-
-  call term_sendkeys(buf, ":call DoAppend('startreplace')\<CR>")
-  call WaitForAssert({-> assert_match('^-- REPLACE --', term_getline(buf, 10))})
-
-  call term_sendkeys(buf, "\<Esc>:tabnew\<CR>")
-  call WaitForAssert({-> assert_notmatch('-- .* --', term_getline(buf, 10))})
-
-  call term_sendkeys(buf, ":call DoAutoAll('startinsert')\<CR>")
-  call WaitForAssert({-> assert_match('^-- INSERT --', term_getline(buf, 10))})
-
-  call term_sendkeys(buf, "\<C-R>=DoAutoAll('stopinsert')\<CR>")
-  call WaitForAssert({-> assert_notmatch('-- .* --', term_getline(buf, 10))})
-
-  call StopVimInTerminal(buf)
-endfunc
-
-" Modifying a hidden buffer while leaving a prompt buffer should not prevent
-" stopping of Insert mode, and returning to the prompt buffer later should
-" restore Insert mode.
-func Test_prompt_leave_modify_hidden()
-  call CanTestPromptBuffer()
-
-  let script =<< trim END
-      file hidden
-      set bufhidden=hide
-      enew
-      new prompt
-      set buftype=prompt
-
-      inoremap <buffer> w <Cmd>wincmd w<CR>
-      inoremap <buffer> q <Cmd>bwipe!<CR>
-      autocmd BufLeave prompt call appendbufline('hidden', '$', 'Leave')
-      autocmd BufEnter prompt call appendbufline('hidden', '$', 'Enter')
-      autocmd BufWinLeave prompt call appendbufline('hidden', '$', 'Close')
-  END
-  call writefile(script, 'XpromptLeaveModifyHidden', 'D')
-
-  let buf = RunVimInTerminal('-S XpromptLeaveModifyHidden', {'rows': 10})
-  call TermWait(buf)
-
-  call term_sendkeys(buf, "a")
-  call WaitForAssert({-> assert_match('^-- INSERT --', term_getline(buf, 10))})
-
-  call term_sendkeys(buf, "w")
-  call WaitForAssert({-> assert_notmatch('-- .* --', term_getline(buf, 10))})
-
-  call term_sendkeys(buf, "\<C-W>w")
-  call WaitForAssert({-> assert_match('^-- INSERT --', term_getline(buf, 10))})
-
-  call term_sendkeys(buf, "q")
-  call WaitForAssert({-> assert_notmatch('-- .* --', term_getline(buf, 10))})
-
-  call term_sendkeys(buf, ":bwipe!\<CR>")
-  call WaitForAssert({-> assert_equal('Leave', term_getline(buf, 2))})
-  call WaitForAssert({-> assert_equal('Enter', term_getline(buf, 3))})
-  call WaitForAssert({-> assert_equal('Leave', term_getline(buf, 4))})
-  call WaitForAssert({-> assert_equal('Close', term_getline(buf, 5))})
-
+  call term_sendkeys(buf, "\<Esc>")
   call StopVimInTerminal(buf)
 endfunc
 

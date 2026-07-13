@@ -73,9 +73,6 @@ typedef struct
     char_u		reganch;
     char_u		*regmust;
     int			regmlen;
-#ifdef DEBUG
-    int			regsz;
-#endif
 #ifdef FEAT_SYN_HL
     char_u		reghasz;
 #endif
@@ -123,8 +120,6 @@ typedef struct
     char_u		*pattern;
     int			nsubexp;	// number of ()
     int			nstate;
-    void		*listbuf[2];	// cached list buffers for
-					// nfa_regmatch()
     nfa_state_T		state[1];	// actually longer..
 } nfa_regprog_T;
 
@@ -183,9 +178,7 @@ struct regengine
     int		(*regexec_nl)(regmatch_T *, char_u *, colnr_T, int);
     // bt_regexec_mult or nfa_regexec_mult
     long	(*regexec_multi)(regmmatch_T *, win_T *, buf_T *, linenr_T, colnr_T, int *);
-#ifdef DEBUG
-    char_u	*expr;
-#endif
+    //char_u	*expr;
 };
 
 // Flags used by vim_regsub() and vim_regsub_both()

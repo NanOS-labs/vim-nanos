@@ -1,5 +1,9 @@
 " Tests for the swap feature
 
+source check.vim
+source shared.vim
+source term_util.vim
+
 func s:swapname()
   return trim(execute('swapname'))
 endfunc
@@ -416,7 +420,7 @@ func s:get_unused_pid(base)
   if has('job')
     " Execute 'echo' as a temporary job, and return its pid as an unused pid.
     if has('win32')
-      let cmd = 'cmd /D /c echo'
+      let cmd = 'cmd /c echo'
     else
       let cmd = 'echo'
     endif

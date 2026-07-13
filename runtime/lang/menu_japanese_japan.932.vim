@@ -2,9 +2,9 @@
 "
 " Menu Translations:	Japanese (CP932)
 " Last Translator:	MURAOKA Taro <koron.kaoriya@gmail.com>
-" Last Change:		18-Jan-2026.
+" Last Change:		18-Dec-2023.
 "
-" Copyright (C) 2001-2026 MURAOKA Taro <koron.kaoriya@gmail.com>,
+" Copyright (C) 2001-2023 MURAOKA Taro <koron.kaoriya@gmail.com>,
 "			  vim-jp <http://vim-jp.org/>
 "
 " THIS FILE IS DISTRIBUTED UNDER THE VIM LICENSE.
@@ -28,7 +28,7 @@ menutrans &User\ Manual		ユーザーマニュアル(&U)
 menutrans &How-To\ links	&How-toリンク
 menutrans &Credits		クレジット(&C)
 menutrans Co&pying		著作権情報(&P)
-menutrans &Sponsor		スポンサー(&S)
+menutrans &Sponsor/Register	スポンサー/登録(&S)
 menutrans O&rphans		孤児(&R)
 menutrans &Version		バージョン情報(&V)
 menutrans &About		Vimについて(&A)

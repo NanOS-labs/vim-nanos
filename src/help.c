@@ -219,7 +219,7 @@ ex_helpclose(exarg_T *eap UNUSED)
     }
 }
 
-#if defined(FEAT_MULTI_LANG)
+#if defined(FEAT_MULTI_LANG) || defined(PROTO)
 /*
  * In an argument search for a language specifiers in the form "@xx".
  * Changes the "@" to NUL if found, and returns a pointer to "xx".
@@ -634,7 +634,7 @@ prepare_help_buffer(void)
 {
     char_u	*p;
 
-    curbuf->b_help = true;
+    curbuf->b_help = TRUE;
 #ifdef FEAT_QUICKFIX
     set_string_option_direct((char_u *)"buftype", -1,
 				     (char_u *)"help", OPT_FREE|OPT_LOCAL, 0);
@@ -720,7 +720,7 @@ fix_help_buffer(void)
 	for (lnum = 1; lnum <= curbuf->b_ml.ml_line_count; ++lnum)
 	{
 	    line = ml_get_buf(curbuf, lnum, FALSE);
-	    len = ml_get_buf_len(curbuf, lnum);
+	    len = (int)STRLEN(line);
 	    if (in_example && len > 0 && !VIM_ISWHITE(line[0]))
 	    {
 		// End of example: non-white or '<' in first column.
@@ -775,9 +775,7 @@ fix_help_buffer(void)
 	    p = p_rtp;
 	    while (*p != NUL)
 	    {
-		int NameBufflen;
-
-		NameBufflen = copy_option_part(&p, NameBuff, MAXPATHL, ",");
+		copy_option_part(&p, NameBuff, MAXPATHL, ",");
 		mustfree = FALSE;
 		rt = vim_getenv((char_u *)"VIMRUNTIME", &mustfree);
 		if (rt != NULL &&
@@ -792,15 +790,11 @@ fix_help_buffer(void)
 		    char_u	*cp;
 
 		    // Find all "doc/ *.txt" files in this directory.
-		    if (*NameBuff != NUL && !after_pathsep(NameBuff, NameBuff + NameBufflen))
-		    {
-			STRCPY(NameBuff + NameBufflen, PATHSEPSTR);
-			NameBufflen += STRLEN_LITERAL(PATHSEPSTR);
-		    }
+		    add_pathsep(NameBuff);
 #ifdef FEAT_MULTI_LANG
-		    STRCPY(NameBuff + NameBufflen, "doc/*.??[tx]");
+		    STRCAT(NameBuff, "doc/*.??[tx]");
 #else
-		    STRCPY(NameBuff + NameBufflen, "doc/*.txt");
+		    STRCAT(NameBuff, "doc/*.txt");
 #endif
 		    if (gen_expand_wildcards(1, &NameBuff, &fcount,
 					 &fnames, EW_FILE|EW_SILENT) == OK
@@ -819,8 +813,6 @@ fix_help_buffer(void)
 			    f1 = fnames[i1];
 			    t1 = gettail(f1);
 			    e1 = vim_strrchr(t1, '.');
-			    if (e1 == NULL)
-				continue;
 			    if (fnamecmp(e1, ".txt") != 0
 					       && fnamecmp(e1, fname + 4) != 0)
 			    {
@@ -836,8 +828,6 @@ fix_help_buffer(void)
 				    continue;
 				t2 = gettail(f2);
 				e2 = vim_strrchr(t2, '.');
-				if (e2 == NULL)
-				    continue;
 				if (e1 - f1 != e2 - f2
 					    || fnamencmp(f1, f2, e1 - f1) != 0)
 				    continue;
@@ -971,6 +961,7 @@ helptags_one(
     int		this_utf8;
     int		firstline;
     int		in_example;
+    int		len;
     int		mix = FALSE;	// detected mixed encodings
 
     // Find all *.txt files.
@@ -1122,16 +1113,10 @@ helptags_one(
 		}
 		p1 = p2;
 	    }
-	    size_t off = STRLEN(IObuff);
-	    if (off >= 2 && IObuff[off - 1] == '\n')
-	    {
-		off -= 2;
-		while (off > 0 && (ASCII_ISLOWER(IObuff[off])
-						  || VIM_ISDIGIT(IObuff[off])))
-		    off--;
-		if (IObuff[off] == '>' && (off == 0 || IObuff[off - 1] == ' '))
-		    in_example = TRUE;
-	    }
+	    len = (int)STRLEN(IObuff);
+	    if ((len == 2 && STRCMP(&IObuff[len - 2], ">\n") == 0)
+		    || (len >= 3 && STRCMP(&IObuff[len - 3], " >\n") == 0))
+		in_example = TRUE;
 	    line_breakcheck();
 	}
 

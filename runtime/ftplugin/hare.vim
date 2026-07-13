@@ -1,51 +1,35 @@
-vim9script
-
-# Vim filetype plugin.
-# Language:    Hare
-# Maintainer:  Amelia Clarke <selene@perilune.dev>
-# Last Change: 2026 Jan 24
-# Upstream:    https://git.sr.ht/~sircmpwn/hare.vim
+" Vim filetype plugin
+" Language: Hare
+" Maintainer: Amelia Clarke <me@rsaihe.dev>
+" Previous Maintainer: Drew DeVault <sir@cmpwn.com>
+" Last Updated: 2022-09-28
+"               2023 Aug 28 by Vim Project (undo_ftplugin)
 
 if exists('b:did_ftplugin')
   finish
 endif
-b:did_ftplugin = 1
+let b:did_ftplugin = 1
 
-# Use the Hare compiler.
-compiler hare
-b:undo_ftplugin = 'compiler make'
+" Formatting settings.
+setlocal formatoptions-=t formatoptions+=croql/
 
-# Formatting settings.
+" Miscellaneous.
 setlocal comments=://
 setlocal commentstring=//\ %s
-setlocal formatlistpat=^\\s*-\\s\\+
-setlocal formatoptions+=croqnlj/ formatoptions-=t
-b:undo_ftplugin ..= ' | setl cms< com< flp< fo<'
+setlocal suffixesadd=.ha
 
-# Locate Hare modules.
-&l:include = '\v^\s*use\s+%(\h\w*\s*\=)?'
-&l:includeexpr = 'trim(v:fname, ":", 2)->substitute("::", "/", "g")'
-setlocal isfname+=:
-&l:path = ',,' .. hare#GetPath()
-b:undo_ftplugin ..= ' | setl inc< inex< isf< pa<'
+let b:undo_ftplugin = "setl cms< com< fo< sua<"
 
-# Follow the official style guide by default.
-if get(g:, 'hare_recommended_style', 1)
+" Hare recommended style.
+if get(g:, "hare_recommended_style", 1)
   setlocal noexpandtab
   setlocal shiftwidth=8
   setlocal softtabstop=0
   setlocal tabstop=8
   setlocal textwidth=80
-  b:undo_ftplugin ..= ' | setl et< sts< sw< ts< tw<'
+  let b:undo_ftplugin ..= " | setl et< sts< sw< ts< tw<"
 endif
 
-# Highlight incorrect whitespace outside of insert mode.
-if get(g:, 'hare_space_error', 1)
-  augroup HareSpaceError
-    autocmd!
-    autocmd InsertEnter * hi link hareSpaceError NONE
-    autocmd InsertLeave * hi link hareSpaceError Error
-  augroup END
-endif
+compiler hare
 
-# vim: et sts=2 sw=2 ts=8 tw=80
+" vim: et sw=2 sts=2 ts=8

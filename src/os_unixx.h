@@ -17,16 +17,24 @@
 
 #ifndef USE_SYSTEM	// use fork/exec to start the shell
 
-# if defined(HAVE_SYS_WAIT_H)
+# if defined(HAVE_SYS_WAIT_H) || defined(HAVE_UNION_WAIT)
 #  include <sys/wait.h>
 # endif
 
 # ifndef WEXITSTATUS
-#  define WEXITSTATUS(stat_val) (((stat_val) >> 8) & 0377)
+#  ifdef HAVE_UNION_WAIT
+#   define WEXITSTATUS(stat_val) ((stat_val).w_T.w_Retcode)
+#  else
+#   define WEXITSTATUS(stat_val) (((stat_val) >> 8) & 0377)
+#  endif
 # endif
 
 # ifndef WIFEXITED
-#  define WIFEXITED(stat_val) (((stat_val) & 255) == 0)
+#  ifdef HAVE_UNION_WAIT
+#   define WIFEXITED(stat_val) ((stat_val).w_T.w_Termsig == 0)
+#  else
+#   define WIFEXITED(stat_val) (((stat_val) & 255) == 0)
+#  endif
 # endif
 
 #endif // !USE_SYSTEM
@@ -69,7 +77,7 @@
  * I don't understand why we don't want termios.h for apollo.
  */
 #if defined(HAVE_TERMIOS_H) && !defined(apollo)
-# include <termios.h>
+#  include <termios.h>
 #else
 # ifdef HAVE_TERMIO_H
 #  include <termio.h>

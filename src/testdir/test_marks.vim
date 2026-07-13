@@ -254,14 +254,7 @@ func Test_marks_k_cmd()
   call setline(1, ['foo', 'bar', 'baz', 'qux'])
   1,3kr
   call assert_equal([0, 3, 1, 0], getpos("'r"))
-  " whitespace before mark
-  4k f
-  call assert_equal([0, 4, 1, 0], getpos("'f"))
-  :2     k	 g
-  call assert_equal([0, 2, 1, 0], getpos("'g"))
-  bw!
-  call assert_fails(':kz7', 'E488: Trailing characters: z7')
-  call assert_fails(':execute ":k^"', 'E191: Argument must be a letter or forward/backward quote')
+  close!
 endfunc
 
 " Test for file marks (A-Z)
@@ -309,12 +302,7 @@ func Test_getmarklist()
   call assert_equal({'mark' : "'r", 'pos' : [bufnr(), 2, 2, 0]},
         \ bufnr()->getmarklist()[0])
   call assert_equal([], {}->getmarklist())
-  normal! yy
-  call assert_equal([
-        \ {'mark': "'[", 'pos': [bufnr(), 2, 1, 0]},
-        \ {'mark': "']", 'pos': [bufnr(), 2, v:maxcol, 0]},
-        \ ], getmarklist(bufnr())[-2:])
-  bw!
+  close!
 endfunc
 
 " This was using freed memory

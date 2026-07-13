@@ -4,7 +4,6 @@
 # installer.
 #
 # Locale ID    : 2052
-# Locale Name  : cn
 # fileencoding : UTF-8
 # Author       : Guopeng Wen, David Liu
 
@@ -17,19 +16,6 @@ LangString ^SetupCaption     ${LANG_SIMPCHINESE} \
         "$(^Name) Setup"
 LangString ^UninstallCaption ${LANG_SIMPCHINESE} \
         "$(^Name) Uninstall"
-
-##############################################################################
-# Translated license file for the license page                            {{{1
-##############################################################################
-
-LicenseLangString page_lic_file ${LANG_SIMPCHINESE} \
-        "..\lang\LICENSE.zh_cn.nsis.txt"
-
-##############################################################################
-# Translated README.txt file, which is opened after installation          {{{1
-##############################################################################
-
-LangString vim_readme_file ${LANG_SIMPCHINESE} "README.zh_cn.txt"
 
 ##############################################################################
 # MUI Configuration Strings                                               {{{1

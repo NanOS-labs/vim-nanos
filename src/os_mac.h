@@ -47,11 +47,6 @@
 #include <dirent.h>
 
 /*
- * Mach interface
- */
-#include <mach/task.h>
-
-/*
  * MacOS specific #define
  */
 
@@ -74,6 +69,7 @@
 
 #define USE_EXE_NAME		    // to find  $VIM
 #define CASE_INSENSITIVE_FILENAME   // ignore case when comparing file names
+#define SPACE_IN_FILENAME
 
 #define USE_FNAME_CASE		// make ":e os_Mac.c" open the file in its
 				// original case, as "os_mac.c"
@@ -83,6 +79,7 @@
 
 #ifndef HAVE_CONFIG_H
 # define HAVE_STRING_H
+# define HAVE_STRCSPN
 # define HAVE_MEMSET
 # define USE_TMPNAM		// use tmpnam() instead of mktemp()
 # define HAVE_FCNTL_H

@@ -4,7 +4,7 @@ vim9script
 # Language:           MetaPost
 # Maintainer:         Nicola Vitacolonna <nvitacolonna@gmail.com>
 # Former Maintainers: Nikolai Weibull <now@bitwi.se>
-# Latest Revision:    2026 Jan 10
+# Latest Revision:    2022 Aug 12
 
 if exists("b:did_ftplugin")
   finish
@@ -84,11 +84,7 @@ endif
 
 if (has('gui_win32') || has('gui_gtk')) && !exists('b:browsefilter')
   b:browsefilter = "MetaPost Source Files (*.mp)\t*.mp\n"
-  if has("win32")
-    b:browsefilter ..= "All Files (*.*)\t*\n"
-  else
-    b:browsefilter ..= "All Files (*)\t*\n"
-  endif
+  ..               "All Files (*.*)\t*.*\n"
   b:undo_ftplugin ..= ' | unlet! b:browsefilter'
 endif
 

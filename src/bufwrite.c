@@ -229,16 +229,6 @@ buf_write_bytes(struct bw_info *ip)
 		    else
 			c = buf[wlen];
 		}
-		// Check that there is enough space
-		if (!(flags & FIO_LATIN1))
-		{
-		    size_t need = (flags & FIO_UCS4) ? 4 : 2;
-		    if ((flags & FIO_UTF16) && c >= 0x10000)
-			need = 4;
-
-		    if ((size_t)(p - ip->bw_conv_buf) + need > ip->bw_conv_buflen)
-			return FAIL;
-		}
 
 		if (ucs2bytes(c, &p, flags) && !ip->bw_conv_error)
 		{
@@ -601,7 +591,11 @@ set_file_time(
     tvp[0].tv_usec  = 0;
     tvp[1].tv_sec   = mtime;
     tvp[1].tv_usec  = 0;
+#   ifdef NeXT
+    (void)utimes((char *)fname, tvp);
+#   else
     (void)utimes((char *)fname, (const struct timeval *)&tvp);
+#   endif
 #  endif
 # endif
 }
@@ -696,7 +690,7 @@ buf_write(
     int		    write_undo_file = FALSE;
     context_sha256_T sha_ctx;
 #endif
-    unsigned int    bkc = get_bkc_flags(buf);
+    unsigned int    bkc = get_bkc_value(buf);
     pos_T	    orig_start = buf->b_op_start;
     pos_T	    orig_end = buf->b_op_end;
 
@@ -1160,7 +1154,7 @@ buf_write(
     got_int = FALSE;
 
     // Mark the buffer as 'being saved' to prevent changed buffer warnings
-    buf->b_saving = true;
+    buf->b_saving = TRUE;
 
     // If we are not appending or filtering, the file exists, and the
     // 'writebackup', 'backup' or 'patchmode' option is set, need a backup.
@@ -1179,6 +1173,8 @@ buf_write(
 #if defined(UNIX) || defined(MSWIN)
 	else if ((bkc & BKC_AUTO))	// "auto"
 	{
+	    int		i;
+
 # ifdef UNIX
 	    // Don't rename the file when:
 	    // - it's a hard link
@@ -1205,24 +1201,18 @@ buf_write(
 #  endif
 # endif
 	    {
-		size_t	dirlen;
-		char_u	tmp_fname[MAXPATHL];
-		int	i;
-
 		// Check if we can create a file and set the owner/group to
 		// the ones from the original file.
 		// First find a file name that doesn't exist yet (use some
 		// arbitrary numbers).
-		dirlen = (size_t)(gettail(fname) - fname);
-		vim_strncpy(tmp_fname, fname, dirlen);
+		STRCPY(IObuff, fname);
 		fd = -1;
 		for (i = 4913; ; i += 123)
 		{
-		    vim_snprintf((char *)tmp_fname + dirlen,
-			sizeof(tmp_fname) - dirlen, "%d", i);
-		    if (mch_lstat((char *)tmp_fname, &st) < 0)
+		    sprintf((char *)gettail(IObuff), "%d", i);
+		    if (mch_lstat((char *)IObuff, &st) < 0)
 		    {
-			fd = mch_open((char *)tmp_fname,
+			fd = mch_open((char *)IObuff,
 				    O_CREAT|O_WRONLY|O_EXCL|O_NOFOLLOW, perm);
 			if (fd < 0 && errno == EEXIST)
 			    // If the same file name is created by another
@@ -1240,7 +1230,7 @@ buf_write(
 #  ifdef HAVE_FCHOWN
 		    vim_ignored = fchown(fd, st_old.st_uid, st_old.st_gid);
 #  endif
-		    if (mch_stat((char *)tmp_fname, &st) < 0
+		    if (mch_stat((char *)IObuff, &st) < 0
 			    || st.st_uid != st_old.st_uid
 			    || st.st_gid != st_old.st_gid
 			    || (long)st.st_mode != perm)
@@ -1249,7 +1239,7 @@ buf_write(
 		    // Close the file before removing it, on MS-Windows we
 		    // can't delete an open file.
 		    close(fd);
-		    mch_remove(tmp_fname);
+		    mch_remove(IObuff);
 # ifdef MSWIN
 		    // MS-Windows may trigger a virus scanner to open the
 		    // file, we can't delete it then.  Keep trying for half a
@@ -1259,10 +1249,10 @@ buf_write(
 
 			for (try = 0; try < 10; ++try)
 			{
-			    if (mch_lstat((char *)tmp_fname, &st) < 0)
+			    if (mch_lstat((char *)IObuff, &st) < 0)
 				break;
 			    ui_delay(50L, TRUE);  // wait 50 msec
-			    mch_remove(tmp_fname);
+			    mch_remove(IObuff);
 			}
 		    }
 # endif
@@ -1314,11 +1304,14 @@ buf_write(
 		&& (fd = mch_open((char *)fname, O_RDONLY | O_EXTRA, 0)) >= 0)
 	{
 	    int		bfd;
-	    char_u	*copybuf;
+	    char_u	*copybuf, *wp;
 	    int		some_error = FALSE;
 	    stat_T	st_new;
 	    char_u	*dirp;
 	    char_u	*rootname;
+#if defined(UNIX) || defined(MSWIN)
+	    char_u      *p;
+#endif
 #if defined(UNIX)
 	    int		did_set_shortname;
 	    mode_t	umask_save;
@@ -1344,9 +1337,6 @@ buf_write(
 	    dirp = p_bdir;
 	    while (*dirp)
 	    {
-		char_u	*p UNUSED;
-		int	copybuf_len UNUSED;
-
 #ifdef UNIX
 		st_new.st_ino = 0;
 		st_new.st_dev = 0;
@@ -1354,13 +1344,13 @@ buf_write(
 #endif
 
 		// Isolate one directory name, using an entry in 'bdir'.
-		copybuf_len = copy_option_part(&dirp, copybuf, WRITEBUFSIZE, ",");
+		(void)copy_option_part(&dirp, copybuf, WRITEBUFSIZE, ",");
 
 #if defined(UNIX) || defined(MSWIN)
-		p = copybuf + copybuf_len;
+		p = copybuf + STRLEN(copybuf);
 		if (after_pathsep(copybuf, p) && p[-1] == p[-2])
 		    // Ends with '//', use full path
-		    if ((p = make_percent_swname(copybuf, p, fname)) != NULL)
+		    if ((p = make_percent_swname(copybuf, fname)) != NULL)
 		    {
 			backup = modname(p, backup_ext, FALSE);
 			vim_free(p);
@@ -1407,13 +1397,13 @@ buf_write(
 			    // may try again with 'shortname' set
 			    if (!(buf->b_shortname || buf->b_p_sn))
 			    {
-				buf->b_shortname = true;
+				buf->b_shortname = TRUE;
 				did_set_shortname = TRUE;
 				continue;
 			    }
 				// setting shortname didn't help
 			    if (did_set_shortname)
-				buf->b_shortname = false;
+				buf->b_shortname = FALSE;
 			    break;
 			}
 #endif
@@ -1423,8 +1413,6 @@ buf_write(
 			// Change one character, just before the extension.
 			if (!p_bk)
 			{
-			    char_u	*wp;
-
 			    wp = backup + STRLEN(backup) - 1
 							 - STRLEN(backup_ext);
 			    if (wp < backup)	// empty file name ???
@@ -1569,16 +1557,14 @@ buf_write(
 	    dirp = p_bdir;
 	    while (*dirp)
 	    {
-		int IObufflen UNUSED;
-
 		// Isolate one directory name and make the backup file name.
-		IObufflen = copy_option_part(&dirp, IObuff, IOSIZE, ",");
+		(void)copy_option_part(&dirp, IObuff, IOSIZE, ",");
 
 #if defined(UNIX) || defined(MSWIN)
-		p = IObuff + IObufflen;
+		p = IObuff + STRLEN(IObuff);
 		if (after_pathsep(IObuff, p) && p[-1] == p[-2])
 		    // path ends with '//', use full path
-		    if ((p = make_percent_swname(IObuff, p, fname)) != NULL)
+		    if ((p = make_percent_swname(IObuff, fname)) != NULL)
 		    {
 			backup = modname(p, backup_ext, FALSE);
 			vim_free(p);
@@ -1708,13 +1694,11 @@ buf_write(
 	wb_flags = get_fio_flags(fenc);
 	if (wb_flags & (FIO_UCS2 | FIO_UCS4 | FIO_UTF16 | FIO_UTF8))
 	{
-	    // overallocate a bit, in case we read incomplete multi-byte chars
-	    int size = bufsize + CONV_RESTLEN;
 	    // Need to allocate a buffer to translate into.
 	    if (wb_flags & (FIO_UCS2 | FIO_UTF16 | FIO_UTF8))
-		write_info.bw_conv_buflen = size * 2;
+		write_info.bw_conv_buflen = bufsize * 2;
 	    else // FIO_UCS4
-		write_info.bw_conv_buflen = size * 4;
+		write_info.bw_conv_buflen = bufsize * 4;
 	    write_info.bw_conv_buf = alloc(write_info.bw_conv_buflen);
 	    if (write_info.bw_conv_buf == NULL)
 		end = 0;
@@ -1783,10 +1767,10 @@ buf_write(
     if (converted && wb_flags == 0
 #ifdef USE_ICONV
 	    && write_info.bw_iconv_fd == (iconv_t)-1
-#endif
-#ifdef FEAT_EVAL
+# endif
+# ifdef FEAT_EVAL
 	    && wfname == fname
-#endif
+# endif
 	    )
     {
 	if (!forceit)
@@ -2068,7 +2052,7 @@ restore_backup:
 			&& *buf->b_p_key != NUL && !filtering
 			&& *ptr == NUL)
 		    write_info.bw_finish = TRUE;
-#endif
+ #endif
 		if (buf_write_bytes(&write_info) == FAIL)
 		{
 		    end = 0;		// write error: break loop
@@ -2177,7 +2161,7 @@ restore_backup:
 		    && (write_info.bw_flags & FIO_ENCRYPTED)
 		    && *buf->b_p_key != NUL && !filtering)
 		write_info.bw_finish = TRUE;
-#endif
+ #endif
 	    if (buf_write_bytes(&write_info) == FAIL)
 		end = 0;		    // write error
 	    nchars += len;
@@ -2211,8 +2195,7 @@ restore_backup:
 	// For a device do try the fsync() but don't complain if it does not
 	// work (could be a pipe).
 	// If the 'fsync' option is FALSE, don't fsync().  Useful for laptops.
-	if ((buf->b_p_fs >= 0 ? buf->b_p_fs : p_fs) && vim_fsync(fd) != 0
-		&& !device)
+	if (p_fs && vim_fsync(fd) != 0 && !device)
 	{
 	    errmsg = (char_u *)_(e_fsync_failed);
 	    end = 0;
@@ -2223,12 +2206,12 @@ restore_backup:
 	// Probably need to set the security context.
 	if (!backup_copy)
 	{
-# if defined(HAVE_SELINUX) || defined(HAVE_SMACK)
+#if defined(HAVE_SELINUX) || defined(HAVE_SMACK)
 	    mch_copy_sec(backup, wfname);
-# endif
-# ifdef FEAT_XATTR
+#endif
+#ifdef FEAT_XATTR
 	    mch_copy_xattr(backup, wfname);
-# endif
+#endif
 	}
 #endif
 
@@ -2333,8 +2316,6 @@ restore_backup:
 		{
 		    errmsg_allocated = TRUE;
 		    errmsg = alloc(300);
-		    if (errmsg == NULL)
-			goto fail;
 		    vim_snprintf((char *)errmsg, 300, _(e_write_error_conversion_failed_in_line_nr_make_fenc_empty_to_override),
 					 (long)write_info.bw_conv_error_lnum);
 		}
@@ -2543,7 +2524,7 @@ fail:
 nofail:
 
     // Done saving, we accept changed buffer warnings again
-    buf->b_saving = false;
+    buf->b_saving = FALSE;
 
     vim_free(backup);
     if (buffer != smallbuf)
@@ -2661,7 +2642,7 @@ nofail:
 #ifdef FEAT_VIMINFO
     // Make sure marks will be written out to the viminfo file later, even when
     // the file is new.
-    curbuf->b_marks_read = true;
+    curbuf->b_marks_read = TRUE;
 #endif
 
     got_int |= prev_got_int;

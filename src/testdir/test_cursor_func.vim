@@ -1,5 +1,7 @@
 " Tests for cursor() and other functions that get/set the cursor position
 
+source check.vim
+
 func Test_wrong_arguments()
   call assert_fails('call cursor(1. 3)', 'E474:')
   call assert_fails('call cursor(test_null_list())', 'E474:')
@@ -90,10 +92,6 @@ func Test_curswant_with_cursorline()
 endfunc
 
 func Test_screenpos()
-  if has('gui_running')
-    set lines=25
-    set columns=78
-  endif
   rightbelow new
   rightbelow 20vsplit
   call setline(1, ["\tsome text", "long wrapping line here", "next line"])
@@ -124,8 +122,7 @@ func Test_screenpos()
   setlocal nonumber display=lastline so=0
   exe "normal G\<C-Y>\<C-Y>"
   redraw
-  let winbar_height = get(wininfo, 'winbar', 0)
-  call assert_equal({'row': winrow + winheight(winid) - 1 + winbar_height,
+  call assert_equal({'row': winrow + wininfo.height - 1,
 	\ 'col': wincol + 7,
 	\ 'curscol': wincol + 7,
 	\ 'endcol': wincol + 7}, winid->screenpos(line('$'), 8))
@@ -279,21 +276,6 @@ func Test_screenpos_number()
   call assert_fails('echo screenpos(0, 2, 1)', 'E966:')
 
   close
-  bwipe!
-endfunc
-
-func Test_screenpos_edit_newfile()
-  new
-  20vsp
-  setl nowrap
-  call setline(1, 'abcdefghijklmnopqrstuvwxyz')
-  call cursor(1, 10)
-  norm! 5zl
-  call assert_equal(#{col: 5, row: 1, endcol: 5, curscol: 5}, screenpos(win_getid(), 1, 10))
-  enew!
-  call assert_equal(1, &l:wrap)
-  call assert_equal(#{col: 1, row: 1, endcol: 1, curscol: 1}, screenpos(win_getid(), 1, 1))
-
   bwipe!
 endfunc
 

@@ -2,7 +2,6 @@
 " Language:	Forth
 " Maintainer:	Johan Kotlinski <kotlinski@gmail.com>
 " Last Change:	2023 Sep 15
-"		2024 Jan 14 by Vim Project (browsefilter)
 " URL:		https://github.com/jkotlinski/forth.vim
 
 if exists("b:did_ftplugin")
@@ -63,12 +62,8 @@ if exists("loaded_matchit") && !exists("b:match_words")
 endif
 
 if (has("gui_win32") || has("gui_gtk")) && !exists("b:browsefilter")
-  let b:browsefilter = "Forth Source Files (*.f, *.fs, *.ft, *.fth, *.4th)\t*.f;*.fs;*.ft;*.fth;*.4th\n"
-  if has("win32")
-    let b:browsefilter ..= "All Files (*.*)\t*\n"
-  else
-    let b:browsefilter ..= "All Files (*)\t*\n"
-  endif
+  let b:browsefilter = "Forth Source Files (*.f *.fs *.ft *.fth *.4th)\t*.f;*.fs;*.ft;*.fth;*.4th\n" ..
+	\	       "All Files (*.*)\t*.*\n"
   let b:undo_ftplugin ..= " | unlet! b:browsefilter"
 endif
 

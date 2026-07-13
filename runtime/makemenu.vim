@@ -2,7 +2,7 @@ vim9script
 
 # Script to define the syntax menu in synmenu.vim
 # Maintainer:	The Vim Project <https://github.com/vim/vim>
-# Last Change:	2025 Mar 09
+# Last Change:	2023 Aug 10
 # Former Maintainer:	Bram Moolenaar <Bram@vim.org>
 
 # This is used by "make menu" in the src directory.
@@ -124,7 +124,6 @@ SynMenu C.C++:cpp
 SynMenu C.C#:cs
 SynMenu C.Cabal\ Haskell\ build\ file:cabal
 SynMenu C.Calendar:calendar
-SynMenu C.Cangjie:cangjie
 SynMenu C.Cascading\ Style\ Sheets:css
 SynMenu C.CDL:cdl
 SynMenu C.Cdrdao\ TOC:cdrtoc
@@ -385,10 +384,8 @@ SynMenu M.MMIX:mmix
 SynMenu M.Modconf:modconf
 SynMenu M.Model:model
 SynMenu M.Modsim\ III:modsim3
-SynMenu M.Modula-2.R10\ (2010):modula2:r10
-SynMenu M.Modula-2.ISO\ (1994):modula2:iso
-SynMenu M.Modula-2.PIM\ (1985):modula2:pim
-SynMenu M.Modula-3:modula3
+SynMenu M.Modula\ 2:modula2
+SynMenu M.Modula\ 3:modula3
 SynMenu M.Monk:monk
 SynMenu M.Motorola\ S-Record:srec
 SynMenu M.Mplayer\ config:mplayerconf
@@ -606,7 +603,6 @@ SynMenu T.TealInfo:tli
 SynMenu T.Telix\ Salt:tsalt
 SynMenu T.Termcap/Printcap:ptcap
 SynMenu T.Terminfo:terminfo
-SynMenu T.Tera:tera
 SynMenu T.Tera\ Term:teraterm
 SynMenu T.TeX.TeX/LaTeX:tex
 SynMenu T.TeX.plain\ TeX:plaintex

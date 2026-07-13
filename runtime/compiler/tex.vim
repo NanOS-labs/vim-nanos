@@ -1,18 +1,17 @@
 " Vim compiler file
 " Compiler:     TeX
 " Maintainer:   Artem Chuprina <ran@ran.pp.ru>
-" Contributors: Enno Nagel
-" Last Change:  2024 Mar 29
-"		2024 Apr 03 by the Vim Project (removed :CompilerSet definition)
-"		2024 Apr 05 by the Vim Project (avoid leaving behind g:makeprg)
-"		2024 Nov 19 by the Vim Project (properly escape makeprg setting)
-"		2025 Mar 11 by the Vim Project (add comment for Dispatch)
+" Last Change:  2012 Apr 30
 
 if exists("current_compiler")
 	finish
 endif
 let s:keepcpo= &cpo
 set cpo&vim
+
+if exists(":CompilerSet") != 2		" older Vim always used :setlocal
+  command -nargs=* CompilerSet setlocal <args>
+endif
 
 " If makefile exists and we are not asked to ignore it, we use standard make
 " (do not redefine makeprg)
@@ -28,9 +27,7 @@ if exists('b:tex_ignore_makefile') || exists('g:tex_ignore_makefile') ||
 	else
 		let current_compiler = "latex"
 	endif
-	let s:makeprg=current_compiler .. ' -interaction=nonstopmode'
-	" CompilerSet makeprg=latex
-	execute 'CompilerSet makeprg=' .. escape(s:makeprg, ' \|"')
+	let &l:makeprg=current_compiler.' -interaction=nonstopmode'
 else
 	let current_compiler = 'make'
 endif

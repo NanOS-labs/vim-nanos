@@ -16,7 +16,7 @@ CC = gcc
 CFLAGS = -O2 -Wall -DWIN32 $(DEFINES)
 
 ifneq (sh.exe, $(SHELL))
-DEL = rm -f
+DEL = rm
 else
 DEL = del
 endif

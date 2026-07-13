@@ -1,8 +1,9 @@
 " Tests for user defined commands
 
-import './util/vim9.vim' as v9
+import './vim9.vim' as v9
 
-source util/screendump.vim
+source check.vim
+source screendump.vim
 
 " Test for <mods> in user defined commands
 function Test_cmdmods()
@@ -131,10 +132,6 @@ function Test_cmdmods()
       \ 'keepmarks keeppatterns lockmarks noswapfile unsilent noautocmd ' .
       \ 'silent verbose aboveleft belowright botright tab topleft vertical',
       \ g:mods)
-
-  kee keep keepm keepma keepmar keepmarks keepa keepalt keepj keepjumps
-      \ keepp keeppatterns MyCmd
-  call assert_equal('keepalt keepjumps keepmarks keeppatterns', g:mods)
 
   let g:mods = ''
   command! -nargs=* MyQCmd let g:mods .= '<q-mods> '
@@ -325,21 +322,18 @@ func Test_CmdErrors()
       vim9script
       com! -complete=file DoCmd :
   END
-  call v9.CheckScriptFailure(lines, 'E1208:', 2)
+  call v9.CheckScriptFailure(lines, 'E1208', 2)
 
   let lines =<< trim END
       vim9script
       com! -nargs=0 -complete=file DoCmd :
   END
-  call v9.CheckScriptFailure(lines, 'E1208:', 2)
+  call v9.CheckScriptFailure(lines, 'E1208', 2)
 
   com! -nargs=0 DoCmd :
   call assert_fails('DoCmd x', 'E488:')
 
   com! -nargs=1 DoCmd :
-  call assert_fails('DoCmd', 'E471:')
-
-  com! -nargs=_ DoCmd :
   call assert_fails('DoCmd', 'E471:')
 
   com! -nargs=+ DoCmd :
@@ -363,14 +357,6 @@ func CustomCompleteList(A, L, P)
   return [ "Monday", "Tuesday", "Wednesday", {}, test_null_string()]
 endfunc
 
-func CustomCompleteListWithSpaces(A, L, P)
-  return [ "Monday Here", "Tuesday There", "Wednesday OK", {}, test_null_string()]
-endfunc
-
-func CustomCompleteListFuzzy(A, L, P)
-  return [ "Monday Here", "Tuesday There", "Wednesday OK", {}, test_null_string()]->matchfuzzy(a:A)
-endfunc
-
 func Test_CmdCompletion()
   call feedkeys(":com -\<C-A>\<C-B>\"\<CR>", 'tx')
   call assert_equal('"com -addr bang bar buffer complete count keepscript nargs range register', @:)
@@ -379,7 +365,7 @@ func Test_CmdCompletion()
   call assert_equal('"com -nargs=0 -addr bang bar buffer complete count keepscript nargs range register', @:)
 
   call feedkeys(":com -nargs=\<C-A>\<C-B>\"\<CR>", 'tx')
-  call assert_equal('"com -nargs=* + 0 1 ? _', @:)
+  call assert_equal('"com -nargs=* + 0 1 ?', @:)
 
   call feedkeys(":com -addr=\<C-A>\<C-B>\"\<CR>", 'tx')
   call assert_equal('"com -addr=arguments buffers lines loaded_buffers other quickfix tabs windows', @:)
@@ -436,38 +422,13 @@ func Test_CmdCompletion()
   call feedkeys(":DoCmd \<C-A>\<C-B>\"\<CR>", 'tx')
   call assert_equal('"DoCmd mswin xterm', @:)
 
-  com! -nargs=_ -complete=behave DoCmd :
-  call feedkeys(":DoCmd \<C-A>\<C-B>\"\<CR>", 'tx')
-  call assert_equal('"DoCmd mswin xterm', @:)
-
-  com! -nargs=1 -complete=retab DoCmd :
-  call feedkeys(":DoCmd \<C-A>\<C-B>\"\<CR>", 'tx')
-  call assert_equal('"DoCmd -indentonly', @:)
-
-  com! -nargs=_ -complete=retab DoCmd :
-  call feedkeys(":DoCmd \<C-A>\<C-B>\"\<CR>", 'tx')
-  call assert_equal('"DoCmd -indentonly', @:)
-
   " Test for file name completion
   com! -nargs=1 -complete=file DoCmd :
   call feedkeys(":DoCmd READM\<Tab>\<C-B>\"\<CR>", 'tx')
   call assert_equal('"DoCmd README.txt', @:)
 
-  com! -nargs=_ -complete=file DoCmd :
-  call feedkeys(":DoCmd READM\<Tab>\<C-B>\"\<CR>", 'tx')
-  call assert_equal('"DoCmd README.txt', @:)
-
   " Test for buffer name completion
   com! -nargs=1 -complete=buffer DoCmd :
-  let bnum = bufadd('BufForUserCmd')
-  call setbufvar(bnum, '&buflisted', 1)
-  call feedkeys(":DoCmd BufFor\<Tab>\<C-B>\"\<CR>", 'tx')
-  call assert_equal('"DoCmd BufForUserCmd', @:)
-  bwipe BufForUserCmd
-  call feedkeys(":DoCmd BufFor\<Tab>\<C-B>\"\<CR>", 'tx')
-  call assert_equal('"DoCmd BufFor', @:)
-
-  com! -nargs=_ -complete=buffer DoCmd :
   let bnum = bufadd('BufForUserCmd')
   call setbufvar(bnum, '&buflisted', 1)
   call feedkeys(":DoCmd BufFor\<Tab>\<C-B>\"\<CR>", 'tx')
@@ -483,14 +444,6 @@ func Test_CmdCompletion()
   com! -nargs=? -complete=customlist,CustomCompleteList DoCmd :
   call feedkeys(":DoCmd \<C-A>\<C-B>\"\<CR>", 'tx')
   call assert_equal('"DoCmd Monday Tuesday Wednesday', @:)
-
-  com! -nargs=_ -complete=customlist,CustomCompleteListWithSpaces DoCmd :
-  call feedkeys(":DoCmd \<C-A>\<C-B>\"\<CR>", 'tx')
-  call assert_equal('"DoCmd Monday Here Tuesday There Wednesday OK', @:)
-
-  com! -nargs=_ -complete=customlist,CustomCompleteListFuzzy DoCmd :
-  call feedkeys(":DoCmd mo he\<C-A>\<C-B>\"\<CR>", 'tx')
-  call assert_equal('"DoCmd Monday Here', @:)
 
   com! -nargs=+ -complete=custom,CustomCompleteList DoCmd :
   call assert_fails("call feedkeys(':DoCmd \<C-D>', 'tx')", 'E730:')
@@ -594,27 +547,6 @@ func Test_addr_all()
   delcommand DoSomething
 endfunc
 
-func Test_nargs_underscore_fargs()
-  " -nargs=_ must behave like -nargs=1 for <f-args>/<q-args>:
-  " the whole argument is one token, whitespace is part of it.
-  let g:res = []
-  com! -nargs=1 DoCmd1 call add(g:res, [<f-args>])
-  com! -nargs=_ DoCmdU call add(g:res, [<f-args>])
-  DoCmd1 a b c
-  DoCmdU a b c
-  call assert_equal([['a b c'], ['a b c']], g:res)
-
-  let g:res = []
-  com! -nargs=_ DoCmdQ call add(g:res, <q-args>)
-  DoCmdQ a b c
-  call assert_equal(['a b c'], g:res)
-
-  delcom DoCmd1
-  delcom DoCmdU
-  delcom DoCmdQ
-  unlet g:res
-endfunc
-
 func Test_command_list()
   command! DoCmd :
   call assert_equal("\n    Name              Args Address Complete    Definition"
@@ -674,10 +606,6 @@ func Test_command_list()
   call assert_equal("\n    Name              Args Address Complete    Definition"
         \        .. "\n    DoCmd             1            arglist     :",
         \           execute('command DoCmd'))
-  command! -nargs=_ -complete=arglist DoCmd :
-  call assert_equal("\n    Name              Args Address Complete    Definition"
-        \        .. "\n    DoCmd             _            arglist     :",
-        \           execute('command DoCmd'))
   command! -nargs=* -complete=augroup DoCmd :
   call assert_equal("\n    Name              Args Address Complete    Definition"
         \        .. "\n    DoCmd             *            augroup     :",
@@ -699,10 +627,6 @@ func Test_command_list()
   command! -nargs=1 DoCmd :
   call assert_equal("\n    Name              Args Address Complete    Definition"
         \        .. "\n    DoCmd             1                        :",
-        \           execute('command DoCmd'))
-  command! -nargs=_ DoCmd :
-  call assert_equal("\n    Name              Args Address Complete    Definition"
-        \        .. "\n    DoCmd             _                        :",
         \           execute('command DoCmd'))
   command! -nargs=* DoCmd :
   call assert_equal("\n    Name              Args Address Complete    Definition"
@@ -877,28 +801,6 @@ func Test_usercmd_with_block()
 
 endfunc
 
-" Regression test: inside_block() must check all cstack levels, not just the
-" top.  A :normal! inside an :if inside a {} block needs newline-based nextcmd
-" separation to work; the bug was that only cs_flags[cs_idx] was checked.
-func Test_usercmd_block_normal_in_nested_if()
-  let lines =<< trim END
-      vim9script
-      command TestCmd {
-          if true
-              normal! Ahello
-              g:result = 'works'
-          endif
-      }
-      new
-      TestCmd
-      bwipe!
-  END
-  call v9.CheckScriptSuccess(lines)
-  call assert_equal('works', g:result)
-  delcommand TestCmd
-  unlet! g:result
-endfunc
-
 func Test_delcommand_buffer()
   command Global echo 'global'
   command -buffer OneBuffer echo 'one'
@@ -1059,24 +961,5 @@ func Test_comclear_while_listing()
   call StopVimInTerminal(buf)
 endfunc
 
-" Test for listing user commands.
-func Test_command_list_0()
-  " Check space padding of attribute and name in command list
-  set vbs&
-  command! ShortCommand echo "ShortCommand"
-  command! VeryMuchLongerCommand echo "VeryMuchLongerCommand"
-
-  redi @"> | com | redi END
-  pu
-
-  let bl = matchbufline(bufnr('%'), "^    ShortCommand      0", 1, '$')
-  call assert_false(bl == [])
-  let bl = matchbufline(bufnr('%'), "^    VeryMuchLongerCommand 0", 1, '$')
-  call assert_false(bl == [])
-
-  bwipe!
-  delcommand ShortCommand
-  delcommand VeryMuchLongerCommand
-endfunc
 
 " vim: shiftwidth=2 sts=2 expandtab

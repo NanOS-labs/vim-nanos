@@ -1,9 +1,6 @@
 " Vim compiler file
 " Compiler: Zig Compiler (zig test)
-" Upstream: https://codeberg.org/ziglang/zig.vim
-" Last Change: 2025 Nov 16 by the Vim Project (set errorformat)
-" 2026 May 12 by the Vim Project (remove error format)
-" 2026 May 24 by the Vim project (do not escape vars for makeprg)
+" Upstream: https://github.com/ziglang/zig.vim
 
 if exists('current_compiler')
   finish
@@ -14,8 +11,17 @@ let current_compiler = 'zig_test'
 let s:save_cpo = &cpo
 set cpo&vim
 
-CompilerSet makeprg=zig\ test\ %:S\ $*
+
+if exists(':CompilerSet') != 2
+  command -nargs=* CompilerSet setlocal <args>
+endif
+
+if has('patch-7.4.191')
+  CompilerSet makeprg=zig\ test\ \%:S\ \$* 
+else
+  CompilerSet makeprg=zig\ test\ \"%\"\ \$* 
+endif
 
 let &cpo = s:save_cpo
 unlet s:save_cpo
-" vim: tabstop=8 shiftwidth=2 softtabstop=2 expandtab
+" vim: tabstop=8 shiftwidth=4 softtabstop=4 expandtab

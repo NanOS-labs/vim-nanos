@@ -1,12 +1,10 @@
 " Vim filetype plugin file
-" Language:		dtd
+" Language:	dtd
 "
 " This runtime file is looking for a new maintainer.
 "
 " Former maintainer:	Dan Sharp
-" Last Change:		2009 Jan 20
-"			2024 Jan 14 by Vim Project (browsefilter)
-"			2024 May 23 by Riley Bruins <ribru17@gmail.com> ('commentstring')
+" Last Changed: 20 Jan 2009
 
 if exists("b:did_ftplugin") | finish | endif
 let b:did_ftplugin = 1
@@ -16,7 +14,7 @@ let b:did_ftplugin = 1
 let s:save_cpo = &cpo
 set cpo-=C
 
-setlocal commentstring=<!--\ %s\ -->
+setlocal commentstring=<!--%s-->
 setlocal comments=s:<!--,m:\ \ \ \ \ ,e:-->
 
 setlocal formatoptions-=t
@@ -29,14 +27,10 @@ if exists("loaded_matchit")
 endif
 
 " Change the :browse e filter to primarily show Java-related files.
-if (has("gui_win32") || has("gui_gtk")) && !exists("b:browsefilter")
+if has("gui_win32")
     let  b:browsefilter="DTD Files (*.dtd)\t*.dtd\n" .
-		\	"XML Files (*.xml)\t*.xml\n"
-    if has("win32")
-	let b:browsefilter .= "All Files (*.*)\t*\n"
-    else
-	let b:browsefilter .= "All Files (*)\t*\n"
-    endif
+		\	"XML Files (*.xml)\t*.xml\n" .
+		\	"All Files (*.*)\t*.*\n"
 endif
 
 " Undo the stuff we changed.

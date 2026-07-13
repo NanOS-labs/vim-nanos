@@ -13,8 +13,11 @@
 
 #include "vim.h"
 
-#ifdef FEAT_TOOLBAR
-# include <photon/PxImage.h>
+// cproto fails on missing include files
+#ifndef PROTO
+# ifdef FEAT_TOOLBAR
+#  include <photon/PxImage.h>
+# endif
 #endif
 
 #if !defined(__QNX__)
@@ -345,10 +348,7 @@ gui_ph_handle_timer_cursor(
 }
 
     static int
-gui_ph_handle_timer_timeout(
-    PtWidget_t		*widget,
-    void		*data,
-    PtCallbackInfo_t	*info)
+gui_ph_handle_timer_timeout(PtWidget_t *widget, void *data, PtCallbackInfo_t *info)
 {
     is_timeout = TRUE;
 
@@ -977,7 +977,7 @@ gui_ph_is_buffer_item(vimmenu_T *menu, vimmenu_T *parent)
 	if (mark != NULL)
 	{
 	    mark++;
-	    while (SAFE_isdigit(*mark))
+	    while (isdigit(*mark))
 		mark++;
 
 	    if (*mark == ')')
@@ -1374,7 +1374,7 @@ gui_mch_wait_for_chars(int wtime)
     }
 }
 
-#if defined(FEAT_BROWSE)
+#if defined(FEAT_BROWSE) || defined(PROTO)
 /*
  * Put up a file requester.
  * Returns the selected name in allocated memory, or NULL for Cancel.
@@ -1454,7 +1454,7 @@ gui_mch_browse(
 }
 #endif
 
-#if defined(FEAT_GUI_DIALOG)
+#if defined(FEAT_GUI_DIALOG) || defined(PROTO)
 static PtWidget_t *gui_ph_dialog_text = NULL;
 
     static int
@@ -1476,10 +1476,7 @@ gui_ph_dialog_close(int button, void *data)
 }
 
     static int
-gui_ph_dialog_text_enter(
-    PtWidget_t		*widget,
-    void		*data,
-    PtCallbackInfo_t	*info)
+gui_ph_dialog_text_enter(PtWidget_t *widget, void *data, PtCallbackInfo_t *info)
 {
     if (info->reason_subtype == Pt_EDIT_ACTIVATE)
 	gui_ph_dialog_close(1, data);
@@ -1563,7 +1560,7 @@ gui_mch_dialog(
 		}
 	    }
 	}
-# ifndef FEAT_GUI_TEXTDIALOG
+#ifndef FEAT_GUI_TEXTDIALOG
 	dialog_result = PtAlert(
 		gui.vimWindow, NULL,
 		title,
@@ -1571,7 +1568,7 @@ gui_mch_dialog(
 		message, NULL,
 		button_count, (const char **) button_array, NULL,
 		default_button, 0, Pt_MODAL);
-# else
+#else
 	// Writing the dialog ourselves lets us add extra features, like
 	// trapping the escape key and returning 0 to vim
 	{
@@ -1636,7 +1633,7 @@ gui_mch_dialog(
 	    PtDestroyWidget(dialog);
 	    gui_ph_dialog_text = NULL;
 	}
-# endif
+#endif
     }
 
     vim_free(button_array);
@@ -1717,7 +1714,7 @@ gui_mch_iconify(void)
     PtForwardWindowEvent(&event);
 }
 
-#if defined(FEAT_EVAL)
+#if defined(FEAT_EVAL) || defined(PROTO)
 /*
  * Bring the Vim window to the foreground.
  */
@@ -1849,7 +1846,7 @@ gui_mch_destroy_scrollbar(scrollbar_T *sb)
 ////////////////////////////////////////////////////////////////////////////
 // Mouse functions
 
-#if defined(FEAT_MOUSESHAPE)
+#if defined(FEAT_MOUSESHAPE) || defined(PROTO)
 // The last set mouse pointer shape is remembered, to be used when it goes
 // from hidden to not hidden.
 static int last_shape = 0;
@@ -1981,11 +1978,11 @@ gui_mch_new_colors(void)
 	g = PgGreenValue(gui_ph_mouse_color) ^ 255;
 	b = PgBlueValue(gui_ph_mouse_color) ^ 255;
 
-# ifndef FEAT_MOUSESHAPE
+#ifndef FEAT_MOUSESHAPE
 	gui_ph_mouse_color = PgRGB(r, g, b);
 	PtSetResource(gui.vimTextArea, Pt_ARG_CURSOR_COLOR,
 		gui_ph_mouse_color, 0);
-# endif
+#endif
     }
 #endif
 
@@ -2353,7 +2350,7 @@ gui_mch_haskey(char_u *name)
 // Menu
 
 #ifdef FEAT_TOOLBAR
-# include "toolbar.phi"
+#include "toolbar.phi"
 
 static PhImage_t *gui_ph_toolbar_images[] = {
     &tb_new_phi,
@@ -2446,7 +2443,7 @@ gui_ph_toolbar_find_icon(vimmenu_T *menu)
 }
 #endif
 
-#if defined(FEAT_MENU)
+#if defined(FEAT_MENU) || defined(PROTO)
     void
 gui_mch_enable_menu(int flag)
 {
@@ -2548,7 +2545,7 @@ gui_mch_add_menu(vimmenu_T *menu, int index)
 
 	    if (menu->mnemonic != 0)
 	    {
-		PtAddHotkeyHandler(gui.vimWindow, SAFE_tolower(menu->mnemonic),
+		PtAddHotkeyHandler(gui.vimWindow, tolower(menu->mnemonic),
 			Pk_KM_Alt, 0, menu, gui_ph_handle_pulldown_menu);
 	    }
 	}
@@ -2579,7 +2576,7 @@ gui_mch_add_menu_item(vimmenu_T *menu, int index)
     n = 0;
     PtSetArg(&args[ n++ ], Pt_ARG_POINTER, menu, 0);
 
-# ifdef FEAT_TOOLBAR
+#ifdef FEAT_TOOLBAR
     if (menu_is_toolbar(parent->name))
     {
 	if (menu_is_separator(menu->name))
@@ -2630,7 +2627,7 @@ gui_mch_add_menu_item(vimmenu_T *menu, int index)
 	    PtRealizeWidget(menu->id);
     }
     else
-# endif
+#endif
 	if (menu_is_separator(menu->name))
     {
 	menu->id = PtCreateWidget(PtSeparator, parent->submenu_id, n, args);
@@ -2655,14 +2652,14 @@ gui_mch_add_menu_item(vimmenu_T *menu, int index)
 
 	PtAddCallback(menu->id, Pt_CB_ACTIVATE, gui_ph_handle_menu, menu);
 
-# ifdef USE_PANEL_GROUP
+#ifdef USE_PANEL_GROUP
 	if (gui_ph_is_buffer_item(menu, parent) == TRUE)
 	{
 	    PtAddCallback(menu->id, Pt_CB_DESTROYED,
 		    gui_ph_handle_buffer_remove, menu);
 	    gui_ph_pg_add_buffer(menu->dname);
 	}
-# endif
+#endif
     }
 
     gui_ph_position_menu(menu->id, menu->priority);
@@ -2737,7 +2734,7 @@ gui_mch_toggle_tearoffs(int enable)
 
 #endif
 
-#if defined(FEAT_TOOLBAR)
+#if defined(FEAT_TOOLBAR) || defined(PROTO)
     void
 gui_mch_show_toolbar(int showit)
 {
@@ -2832,7 +2829,7 @@ gui_ph_parse_font_name(
 	{
 	    while (*mark != NUL && *mark++ == ':')
 	    {
-		switch (SAFE_tolower(*mark++))
+		switch (tolower(*mark++))
 		{
 		    case 'a': *font_flags |= PF_STYLE_ANTIALIAS; break;
 		    case 'b': *font_flags |= PF_STYLE_BOLD; break;
@@ -2964,7 +2961,7 @@ gui_mch_get_font(char_u *vim_font_name, int report_error)
     return FAIL;
 }
 
-#if defined(FEAT_EVAL)
+#if defined(FEAT_EVAL) || defined(PROTO)
 /*
  * Return the name of font "font" in allocated memory.
  * Don't know how to get the actual name, thus use the provided name.

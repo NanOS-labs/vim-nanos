@@ -1,5 +1,7 @@
 " Tests for 'packpath' and :packadd
 
+source check.vim
+
 func SetUp()
   let s:topdir = getcwd() . '/Xppdir'
   exe 'set packpath=' . s:topdir
@@ -25,13 +27,6 @@ func Test_packadd()
   packadd mytest
   " plugdir should be inserted before plugdir/after
   call assert_match('^nosuchdir,' . s:plugdir . ',', &rtp)
-
-  " This used to cause heep-buffer-overflow
-  " All existing entries in 'rtp' have the same length here
-  let &rtp = 'Xfoodir,Xbardir,Xbazdir'
-  packadd mytest
-  " plugdir should be inserted after the existing directories
-  call assert_match('^Xfoodir,Xbardir,Xbazdir,' .. s:plugdir .. ',', &rtp)
 
   set rtp&
   let rtp = &rtp

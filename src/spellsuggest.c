@@ -13,7 +13,7 @@
 
 #include "vim.h"
 
-#if defined(FEAT_SPELL)
+#if defined(FEAT_SPELL) || defined(PROTO)
 
 /*
  * Use this to adjust the score after finding suggestions, based on the
@@ -463,7 +463,7 @@ spell_check_sps(void)
     void
 spell_suggest(int count)
 {
-    char_u	*line = NULL;
+    char_u	*line;
     pos_T	prev_cursor = curwin->w_cursor;
     char_u	wcopy[MAXWLEN + 2];
     char_u	*p;
@@ -488,7 +488,7 @@ spell_suggest(int count)
     if (*curwin->w_s->b_p_spl == NUL)
     {
 	emsg(_(e_spell_checking_is_not_possible));
-	goto skip;
+	return;
     }
 
     if (VIsual_active)
@@ -498,7 +498,7 @@ spell_suggest(int count)
 	if (curwin->w_cursor.lnum != VIsual.lnum)
 	{
 	    vim_beep(BO_SPELL);
-	    goto skip;
+	    return;
 	}
 	badlen = (int)curwin->w_cursor.col - (int)VIsual.col;
 	if (badlen < 0)
@@ -508,21 +508,22 @@ spell_suggest(int count)
 	++badlen;
 	end_visual_mode();
 	// make sure we don't include the NUL at the end of the line
-	if (badlen > ml_get_curline_len() - (int)curwin->w_cursor.col)
-	    badlen = ml_get_curline_len() - (int)curwin->w_cursor.col;
+	line = ml_get_curline();
+	if (badlen > (int)STRLEN(line) - (int)curwin->w_cursor.col)
+	    badlen = (int)STRLEN(line) - (int)curwin->w_cursor.col;
     }
     // Find the start of the badly spelled word.
-    else if (spell_move_to(curwin, FORWARD, SMT_ALL, TRUE, NULL) == 0
+    else if (spell_move_to(curwin, FORWARD, TRUE, TRUE, NULL) == 0
 	    || curwin->w_cursor.col > prev_cursor.col)
     {
 	// No bad word or it starts after the cursor: use the word under the
 	// cursor.
 	curwin->w_cursor = prev_cursor;
-	char_u *curline = ml_get_curline();
-	p = curline + curwin->w_cursor.col;
+	line = ml_get_curline();
+	p = line + curwin->w_cursor.col;
 	// Backup to before start of word.
-	while (p > curline && spell_iswordp_nmw(p, curwin))
-	    MB_PTR_BACK(curline, p);
+	while (p > line && spell_iswordp_nmw(p, curwin))
+	    MB_PTR_BACK(line, p);
 	// Forward to start of word.
 	while (*p != NUL && !spell_iswordp_nmw(p, curwin))
 	    MB_PTR_ADV(p);
@@ -530,9 +531,9 @@ spell_suggest(int count)
 	if (!spell_iswordp_nmw(p, curwin))		// No word found.
 	{
 	    beep_flush();
-	    goto skip;
+	    return;
 	}
-	curwin->w_cursor.col = (colnr_T)(p - curline);
+	curwin->w_cursor.col = (colnr_T)(p - line);
     }
 
     // Get the word and its length.
@@ -542,7 +543,7 @@ spell_suggest(int count)
 							curwin->w_cursor.col);
 
     // Make a copy of current line since autocommands may free the line.
-    line = vim_strnsave(ml_get_curline(), ml_get_curline_len());
+    line = vim_strsave(ml_get_curline());
     if (line == NULL)
 	goto skip;
 
@@ -568,7 +569,7 @@ spell_suggest(int count)
 	// When 'rightleft' is set the list is drawn right-left.
 	cmdmsg_rl = curwin->w_p_rl;
 	if (cmdmsg_rl)
-	    msg_col = cmdline_width - 1;
+	    msg_col = Columns - 1;
 #endif
 
 	// List the suggestions.
@@ -3762,16 +3763,11 @@ sug_compare(const void *s1, const void *s2)
 {
     suggest_T	*p1 = (suggest_T *)s1;
     suggest_T	*p2 = (suggest_T *)s2;
-    int		n;
-
-    n = p1->st_score == p2->st_score ? 0 :
-	p1->st_score > p2->st_score ? 1 : -1;
+    int		n = p1->st_score - p2->st_score;
 
     if (n == 0)
     {
-	n = p1->st_altscore == p2->st_altscore ? 0 :
-	    p1->st_altscore > p2->st_altscore ? 1 : -1;
-
+	n = p1->st_altscore - p2->st_altscore;
 	if (n == 0)
 	    n = STRICMP(p1->st_word, p2->st_word);
     }

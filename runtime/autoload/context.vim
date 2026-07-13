@@ -3,13 +3,13 @@ vim9script
 # Language:           ConTeXt typesetting engine
 # Maintainer:         Nicola Vitacolonna <nvitacolonna@gmail.com>
 # Former Maintainers: Nikolai Weibull <now@bitwi.se>
-# Latest Revision:    2026 May 20
+# Latest Revision:    2023 Dec 26
 
 # Typesetting {{{
 import autoload './typeset.vim'
 
 export def ConTeXtCmd(path: string): list<string>
-  var cmd = ['mtxrun', '--script', 'context', '--paranoid', '--autogenerate']
+  var cmd = ['mtxrun', '--script', 'context', '--nonstopmode', '--autogenerate']
   if !empty(get(g:, 'context_extra_options', ''))
     cmd += g:context_extra_options
   endif
@@ -30,21 +30,14 @@ export def StopJobs()
 enddef
 
 export def Log(bufname: string)
-  var logpath = typeset.LogPath(bufname)
-
-  if filereadable(logpath)
-    execute 'edit' fnameescape(typeset.LogPath(bufname))
-    return
-  endif
-
-  echomsg $'[ConTeXt] No log file found ({logpath})'
+  execute 'edit' typeset.LogPath(bufname)
 enddef
 # }}}
 
 # Completion {{{
 def BinarySearch(base: string, keywords: list<string>): list<string>
-  var pat = '^' .. base
-  var len = len(keywords)
+  const pat = '^' .. base
+  const len = len(keywords)
   var res = []
   var lft = 0
   var rgt = len

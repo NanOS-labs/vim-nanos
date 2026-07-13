@@ -1,7 +1,6 @@
 /* mark.c */
 int setmark(int c);
 int setmark_pos(int c, pos_T *pos, int fnum);
-void mark_forget_file(win_T *wp, int fnum);
 void setpcmark(void);
 void checkpcmark(void);
 pos_T *movemark(int count);

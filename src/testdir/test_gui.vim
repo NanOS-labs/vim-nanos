@@ -1,8 +1,10 @@
 " Tests specifically for the GUI
 
+source shared.vim
+source check.vim
 CheckCanRunGui
 
-source util/setup_gui.vim
+source setup_gui.vim
 
 func Setup()
   call GUISetUpCommon()
@@ -103,14 +105,12 @@ func Test_getfontname_without_arg()
     let pat = '\(7x13\)\|\(\c-Misc-Fixed-Medium-R-Normal--13-120-75-75-C-70-ISO8859-1\)'
     call assert_match(pat, fname)
   elseif has('gui_gtk2') || has('gui_gnome') || has('gui_gtk3')
-    " 'expected' is DEFAULT_FONT of gui_gtk_x11.c (any size)
-    call assert_match('^Monospace\>', fname)
+    " 'expected' is DEFAULT_FONT of gui_gtk_x11.c.
+    call assert_equal('Monospace 10', fname)
   endif
 endfunc
 
 func Test_getwinpos()
-  CheckX11
-
   call assert_match('Window position: X \d\+, Y \d\+', execute('winpos'))
   call assert_true(getwinposx() >= 0)
   call assert_true(getwinposy() >= 0)
@@ -424,7 +424,7 @@ func Test_set_guifont()
 
     " Empty list. Should fallback to the built-in default.
     set guifont=
-    call assert_match('^Monospace\>', getfontname())
+    call assert_equal('Monospace 10', getfontname())
   endif
 
   if has('xfontset')
@@ -611,7 +611,7 @@ func Test_expand_guifont()
 
     " Test recalling default and existing option
     set guifont=
-    call assert_match('^Monospace\>', getcompletion('set guifont=', 'cmdline')[0])
+    call assert_equal('Monospace\ 10', getcompletion('set guifont=', 'cmdline')[0])
     set guifont=Monospace\ 9
     call assert_equal('Monospace\ 9', getcompletion('set guifont=', 'cmdline')[0])
 
@@ -633,7 +633,7 @@ endfunc
 func Test_set_guiligatures()
   CheckX11BasedGui
 
-  if has('gui_gtk') || has('gui_gtk2') || has('gui_gnome') || has('gui_gtk3') || has('win32')
+  if has('gui_gtk') || has('gui_gtk2') || has('gui_gnome') || has('gui_gtk3')
     " Try correct value
     set guiligatures=<>=ab
     call assert_equal("<>=ab", &guiligatures)
@@ -662,20 +662,6 @@ func Test_set_guioptions()
   if has('win32')
     " Default Value
     set guioptions&
-    call assert_equal('egmrLtT', &guioptions)
-
-    set guioptions+=s
-    exec 'sleep' . duration
-    call assert_equal('egmrLtTs', &guioptions)
-    set guioptions-=s
-    exec 'sleep' . duration
-    call assert_equal('egmrLtT', &guioptions)
-
-    set guioptions+=d
-    exec 'sleep' . duration
-    call assert_equal('egmrLtTd', &guioptions)
-    set guioptions-=d
-    exec 'sleep' . duration
     call assert_equal('egmrLtT', &guioptions)
 
   else
@@ -782,10 +768,13 @@ func Test_set_guioptions()
 endfunc
 
 func Test_scrollbars()
+  " this test sometimes fails on CI
+  let g:test_is_flaky = 1
+
   " buffer with 200 lines
+  new
   call setline(1, repeat(['one', 'two'], 100))
-  set scrolloff=0
-  set guioptions=rlbk
+  set guioptions+=rlb
 
   " scroll to move line 11 at top, moves the cursor there
   let args = #{which: 'left', value: 10, dragging: 0}
@@ -835,7 +824,6 @@ func Test_scrollbars()
   call assert_fails("call test_gui_event('scrollbar', #{which: 'a', value: 1, dragging: 0})", 'E475:')
 
   set guioptions&
-  set scrolloff&
   set wrap&
   bwipe!
 endfunc
@@ -957,34 +945,6 @@ func Test_gui_run_cmd_in_terminal()
   exe "silent !" . cmd . " test_gui.vim"
   " TODO: how to check that the command ran in a separate terminal?
   " Maybe check for $TERM (dumb vs xterm) in the spawned shell?
-  let &guioptions = save_guioptions
-endfunc
-
-" Test that :! with guioptions+=! doesn't scroll more than necessary.
-" With ConPTY on Windows 11, the terminal may damage all rows on init,
-" which previously caused the entire screen to scroll up.
-func Test_gui_system_term_scroll()
-  CheckFeature terminal
-  CheckFeature conpty
-  let save_guioptions = &guioptions
-  set guioptions+=!
-
-  enew
-  call setline(1, repeat(['AAAA'], &lines + 5))
-  redraw
-
-  if has('win32')
-    !echo.
-  else
-    !echo
-  endif
-
-  " With the ConPTY scroll bug, the screen scrolled up entirely and row 1
-  " became blank.  With the fix, only the output lines scroll and the buffer
-  " content remains visible near the top of the screen.
-  call assert_equal('A', screenstring(1, 1))
-
-  %bwipe!
   let &guioptions = save_guioptions
 endfunc
 
@@ -1275,19 +1235,6 @@ func Test_gui_mouse_event()
   call feedkeys("\<Esc>", 'Lx!')
   call assert_equal([0, 2, 7, 0], getpos('.'))
   call assert_equal('wo thrfour five sixteen', getline(2))
-
-  " Test P option (use '+' register for modeless)
-  set guioptions+=AP
-  call cursor(1, 6)
-  redraw!
-  let @+ = ''
-  let args = #{button: 2, row: 1, col: 11, multiclick: 0, modifiers: 0}
-  call test_gui_event('mouse', args)
-  let args.button = 3
-  call test_gui_event('mouse', args)
-  call feedkeys("\<Esc>", 'Lx!')
-  call assert_equal([0, 1, 6, 0], getpos('.'))
-  call assert_equal('wo thr', @+)
 
   set mouse&
   let &guioptions = save_guioptions
@@ -1759,14 +1706,9 @@ func Test_gui_lowlevel_keyevent()
   new
 
   " Test for <Ctrl-A> to <Ctrl-Z> keys
-  " FIXME: <Ctrl-C> is excluded for now.  It makes the test flaky.
-  for kc in range(65, 66) + range(68, 90)
+  for kc in range(65, 90)
     call SendKeys([0x11, kc])
-    try
-      let ch = getcharstr()
-    catch /^Vim:Interrupt$/
-      let ch = "\<c-c>"
-    endtry
+    let ch = getcharstr()
     call assert_equal(nr2char(kc - 64), ch)
   endfor
 
@@ -1798,173 +1740,6 @@ endfunc
 func Test_gui_csi_keytrans()
   call assert_equal('<C-L>', keytrans("\x9b\xfc\x04L"))
   call assert_equal('<C-D>', keytrans("\x9b\xfc\x04D"))
-endfunc
-
-" Test that CursorHold is NOT triggered at startup before a keypress
-func Test_CursorHold_not_triggered_at_startup()
-  defer delete('Xcursorhold.log')
-  defer delete('Xcursorhold_test.vim')
-  call writefile([
-        \ 'set updatetime=300',
-        \ 'let g:cursorhold_triggered = 0',
-        \ 'autocmd CursorHold * let g:cursorhold_triggered += 1 | call writefile(["CursorHold triggered"], "Xcursorhold.log", "a")',
-        \ 'call timer_start(400, {-> execute(''call writefile(["g:cursorhold_triggered=" . g:cursorhold_triggered], "Xcursorhold.log", "a") | qa!'')})',
-        \ ], 'Xcursorhold_test.vim')
-
-  let vimcmd = v:progpath . ' -g -f -N -u NONE -i NONE -S Xcursorhold_test.vim'
-  call system(vimcmd)
-
-  let lines = filereadable('Xcursorhold.log') ? readfile('Xcursorhold.log') : []
-
-  " Assert that CursorHold did NOT trigger at startup
-  call assert_false(index(lines, 'CursorHold triggered') != -1)
-  let found = filter(copy(lines), 'v:val =~ "^g:cursorhold_triggered="')
-  call assert_equal(['g:cursorhold_triggered=0'], found)
-endfunc
-
-" Test that Buffers menu generates the correct index for different buffer
-" names for sorting.
-func Test_Buffers_Menu()
-  doautocmd LoadBufferMenu VimEnter
-
-  " Non-ASCII characters only use the first character as idx
-  let idx_emoji = or(char2nr('😑'), 0x40000000)
-
-  " Only first five letters are used for alphanumeric:
-  " ('a'-32) << 24 + ('b'-32) << 18 + ('c'-32) << 12 + ('d'-32) << 6 + ('e'-32)
-  let idx_abcde = 0x218A3925
-  " ('a'-32) << 24 + ('b'-32) << 18 + ('c'-32) << 12 + ('d'-32) << 6 + ('f'-32)
-  let idx_abcdf = 0x218A3926
-  " ('a'-32) << 24 + 63 (clamped) << 18 + ('c'-32) << 12 + ('d'-32) << 6 + ('e'-32)
-  let idx_a_emoji_cde = 0x21FE3925
-
-  let names = ['😑', '😑1', '😑2', 'abcde', 'abcdefghi', 'abcdf', 'a😑cde']
-  let indices = [idx_emoji, idx_emoji, idx_emoji, idx_abcde, idx_abcde, idx_abcdf, idx_a_emoji_cde]
-  for i in range(len(names))
-    let name = names[i]
-    let idx = indices[i]
-    exe ':badd ' .. name
-    let nr = bufnr('$')
-
-    let cmd = printf(':amenu Buffers.%s\ (%d)', name, nr)
-    let menu = split(execute(cmd), '\n')[1]
-    call assert_inrange(0, 0x7FFFFFFF, idx)
-    call assert_match('^' .. idx .. ' '.. name, menu)
-  endfor
-
-  %bw!
-endfunc
-
-" Test if 'guioptions=a' only copies to the primary selection and
-" 'guioptions=aP' only copies to the regular selection.
-func Test_guioptions_clipboard()
-  CheckX11BasedGui
-
-  set mouse=
-  let save_guioptions = &guioptions
-  set guioptions=a
-
-  let @+ = ""
-  let @* = ""
-
-  call setline(1, ['one two three', 'four five six'])
-  call cursor(1, 1)
-  call feedkeys("\<Esc>vee\<Esc>", "Lx!")
-
-  call assert_equal("one two", @*)
-  call assert_equal("", @+)
-
-  set guioptions=aP
-
-  let @+ = ""
-  let @* = ""
-
-  call cursor(1, 1)
-  call feedkeys("\<Esc>veee\<Esc>", "Lx!")
-
-  call assert_equal("one two three", @+)
-  call assert_equal("", @*)
-
-  set mouse&
-  let &guioptions = save_guioptions
-endfunc
-
-" Tests for GUI window geometry: initial size from -geometry option and
-" size stability after :tabnew / :tabclose.
-"
-" Background: on GTK3 with client-side decorations (Wayland), the window
-" compositor subtracts the CSD frame from the requested size, causing the
-" window to open a few pixels too small (wrong &columns/&lines) and to shrink
-" further with each :tabnew/:tabclose cycle.
-
-" Test that a GUI window opened with -geometry=WxH has exactly W columns
-" and H lines.
-"
-" Without the CSD fix, on GTK3/Wayland the compositor subtracts the frame
-" margin from the requested pixel size, so the window is a character cell too
-" narrow and too short.
-func Test_geometry_exact_size()
-  CheckCanRunGui
-  CheckFeature gui_gtk
-
-  let after =<< trim [CODE]
-    call writefile([string(&columns), string(&lines)], 'Xtest_geomsize')
-    qall
-  [CODE]
-
-  " Hide the menu bar so it does not widen the minimum window size.
-  if RunVim(['set guioptions-=m'], after, '-f -g -geometry 40x15')
-    let result = readfile('Xtest_geomsize')
-    call assert_equal('40', result[0], 'columns should match -geometry width')
-    call assert_equal('15', result[1], 'lines should match -geometry height')
-  endif
-
-  call delete('Xtest_geomsize')
-endfunc
-
-" Test that the window size is unchanged after opening and closing a tab.
-"
-" Each :tabnew/:tabclose cycle triggers a tabline show/hide, which causes
-" asynchronous GTK layout events.  Without the fix, stale configure events
-" from these layout passes are mis-interpreted as user resizes, reducing
-" &columns and &lines with every cycle.  Three cycles are performed to
-" amplify any drift.
-func Test_tabnew_tabclose_size_stable()
-  CheckCanRunGui
-  CheckFeature gui_gtk
-
-  let after =<< trim [CODE]
-    let cols0 = &columns
-    let rows0 = &lines
-    tabnew
-    sleep 300m
-    tabclose
-    sleep 300m
-    tabnew
-    sleep 300m
-    tabclose
-    sleep 300m
-    tabnew
-    sleep 300m
-    tabclose
-    sleep 300m
-    call writefile([string(cols0), string(rows0), string(&columns), string(&lines)], 'Xtest_tabsize')
-    qall
-  [CODE]
-
-  if RunVim(['set guioptions-=m'], after, '-f -g -geometry 40x15')
-    let result = readfile('Xtest_tabsize')
-    call assert_equal('40', result[0], 'initial columns should match -geometry width')
-    call assert_equal('15', result[1], 'initial lines should match -geometry height')
-    call assert_equal(result[0], result[2],
-          \ 'columns changed after 3x tabnew/tabclose: '
-          \ .. result[0] .. ' -> ' .. result[2])
-    call assert_equal(result[1], result[3],
-          \ 'lines changed after 3x tabnew/tabclose: '
-          \ .. result[1] .. ' -> ' .. result[3])
-  endif
-
-  call delete('Xtest_tabsize')
 endfunc
 
 " vim: shiftwidth=2 sts=2 expandtab

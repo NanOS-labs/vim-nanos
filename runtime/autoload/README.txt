@@ -14,10 +14,9 @@ Omni completion files:
 ccomplete.vim		C
 csscomplete.vim		HTML / CSS
 htmlcomplete.vim	HTML
-javascriptcomplete.vim	Javascript
+javascriptcomplete.vim  Javascript
 phpcomplete.vim		PHP
 pythoncomplete.vim	Python
-python3complete.vim	Python
 rubycomplete.vim	Ruby
 syntaxcomplete.vim	from syntax highlighting
 xmlcomplete.vim		XML (uses files in the xml directory)

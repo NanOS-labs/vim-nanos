@@ -1,8 +1,7 @@
-" Vim syntax file for login.defs(5)
+" Vim syntax file
 " Language:             login.defs(5) configuration file
 " Previous Maintainer:  Nikolai Weibull <now@bitwi.se>
 " Latest Revision:      2010-11-29
-" 2024 Jul 12 by Vim Project: Update keywords
 
 if exists("b:current_syntax")
   finish
@@ -36,8 +35,6 @@ syn keyword logindefsBooleanKeyword contained
                                     \ CREATE_HOME
                                     \ DEFAULT_HOME
                                     \ FAILLOG_ENAB
-                                    \ FORCE_SHADOW
-                                    \ GRANT_AUX_GROUP_SUBIDS
                                     \ LASTLOG_ENAB
                                     \ LOG_OK_LOGINS
                                     \ LOG_UNKFAIL_ENAB
@@ -57,20 +54,15 @@ syn keyword logindefsBoolean        contained yes no
 
 syn keyword logindefsEncryptKeyword contained
                                     \ ENCRYPT_METHOD
-                                    \ HMAC_CRYPTO_ALGO
                                     \ nextgroup=logindefsEncryptMethod skipwhite
 
 syn keyword logindefsEncryptMethod  contained
-                                    \ BCRYPT
                                     \ DES
                                     \ MD5
                                     \ SHA256
                                     \ SHA512
-                                    \ YESCRYPT
 
 syn keyword logindefsNumberKeyword  contained
-                                    \ BCRYPT_MAX_ROUNDS
-                                    \ BCRYPT_MIN_ROUNDS
                                     \ ERASECHAR
                                     \ FAIL_DELAY
                                     \ GID_MAX
@@ -87,12 +79,6 @@ syn keyword logindefsNumberKeyword  contained
                                     \ PASS_MIN_LEN
                                     \ SHA_CRYPT_MAX_ROUNDS
                                     \ SHA_CRYPT_MIN_ROUNDS
-                                    \ SUB_GID_COUNT
-                                    \ SUB_GID_MAX
-                                    \ SUB_GID_MIN
-                                    \ SUB_UID_COUNT
-                                    \ SUB_UID_MAX
-                                    \ SUB_UID_MIN
                                     \ SYS_GID_MAX
                                     \ SYS_GID_MIN
                                     \ SYS_UID_MAX
@@ -100,14 +86,8 @@ syn keyword logindefsNumberKeyword  contained
                                     \ UID_MAX
                                     \ UID_MIN
                                     \ ULIMIT
-                                    \ YESCRYPT_COST_FACTOR
-                                    \ nextgroup=@logindefsNumber skipwhite
-
-syn keyword logindefsNumberKeyword  contained
-                                    \ HOME_MODE
-                                    \ TTYPERM
                                     \ UMASK
-                                    \ nextgroup=logindefsOctal,logindefsOctalError skipwhite
+                                    \ nextgroup=@logindefsNumber skipwhite
 
 syn cluster logindefsNumber         contains=
                                     \ logindefsDecimal,
@@ -134,7 +114,6 @@ syn keyword logindefsPathKeyword    contained
                                     \ MAIL_DIR
                                     \ MAIL_FILE
                                     \ NOLOGINS_FILE
-                                    \ NONEXISTENT
                                     \ SULOG_FILE
                                     \ TTYTYPE_FILE
                                     \ nextgroup=logindefsPath skipwhite
@@ -159,9 +138,9 @@ syn keyword logindefsStringKeyword  contained
                                     \ ENV_HZ
                                     \ ENV_TZ
                                     \ LOGIN_STRING
-                                    \ PREVENT_NO_AUTH
                                     \ SU_NAME
                                     \ TTYGROUP
+                                    \ TTYPERM
                                     \ USERDEL_CMD
                                     \ nextgroup=logindefsString skipwhite
 

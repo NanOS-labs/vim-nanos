@@ -1,7 +1,7 @@
 " Menu Translations:	Icelandic / Íslenska
 " Maintainer:		Jón Arnar Briem <jonbriem@gmail.com>
 " Originally By:	Jón Arnar Briem <jonbriem@gmail.com>
-" Last Change:		2024 May 2
+" Last Change:	Sun, 24 Mar 2019 22:40:00 CEST
 " Original translations
 " vim:set foldmethod=marker tabstop=8:
 
@@ -301,7 +301,6 @@ let g:menutrans_tags_dialog =                       "Sláið inn nafn Merkjaskráa.
 let g:menutrans_textwidth_dialog =                  "Sláið inn nýja textabreidd (0 til að óvirkja sniðmátun): "
 let g:menutrans_fileformat_dialog =                 "Veljið Skráarsnið"
 " }}}
-menutrans &Show\ File\ Types\ in\ menu		Sýna\ skráargerðir\ í\ valmyndinni
 
 let &cpo = s:keepcpo
 unlet s:keepcpo

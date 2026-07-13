@@ -1,5 +1,9 @@
 " Test argument list commands
 
+source check.vim
+source shared.vim
+source term_util.vim
+
 func Reset_arglist()
   args a | %argd
 endfunc
@@ -355,7 +359,6 @@ func Test_argv()
   call assert_equal('', argv(1, 100))
   call assert_equal([], argv(-1, 100))
   call assert_equal('', argv(10, -1))
-  %argdelete
 endfunc
 
 " Test for the :argedit command
@@ -550,34 +553,9 @@ endfunc
 func Test_argdo()
   next! Xa.c Xb.c Xc.c
   new
-
-  let g:bufenter = 0
-  let g:bufleave = 0
-  autocmd BufEnter * let g:bufenter += 1
-  autocmd BufLeave * let g:bufleave += 1
-
   let l = []
   argdo call add(l, expand('%'))
   call assert_equal(['Xa.c', 'Xb.c', 'Xc.c'], l)
-  call assert_equal(3, g:bufenter)
-  call assert_equal(3, g:bufleave)
-
-  let g:bufenter = 0
-  let g:bufleave = 0
-
-  set eventignore=BufEnter,BufLeave
-  let l = []
-  argdo call add(l, expand('%'))
-  call assert_equal(['Xa.c', 'Xb.c', 'Xc.c'], l)
-  call assert_equal(0, g:bufenter)
-  call assert_equal(0, g:bufleave)
-  call assert_equal('BufEnter,BufLeave', &eventignore)
-  set eventignore&
-
-  autocmd! BufEnter
-  autocmd! BufLeave
-  unlet g:bufenter
-  unlet g:bufleave
   bwipe Xa.c Xb.c Xc.c
 endfunc
 
@@ -636,7 +614,7 @@ endfunc
 func Test_clear_arglist_in_all()
   n 0 00 000 0000 00000 000000
   au WinNew 0 n 0
-  call assert_fails("all", "E1156:")
+  call assert_fails("all", "E1156")
   au! *
 endfunc
 
@@ -764,58 +742,6 @@ func Test_all_command()
 
   %argdelete
   %bw!
-endfunc
-
-" Test for deleting buffer when creating an arglist. This was accessing freed
-" memory
-func Test_crash_arglist_uaf()
-  "%argdelete
-  new one
-  au BufAdd XUAFlocal :bw
-  arglocal XUAFlocal
-  au! BufAdd
-  bw! XUAFlocal
-
-  au BufAdd XUAFlocal2 :bw
-  new two
-  new three
-  arglocal
-  argadd XUAFlocal2 Xfoobar
-  bw! XUAFlocal2
-  bw! two
-
-  au! BufAdd
-endfunc
-
-" This was using freed memory again
-func Test_crash_arglist_uaf2()
-  new
-  au BufAdd XUAFlocal :bw
-  arglocal XUAFlocal
-  redraw!
-  put ='abc'
-  2#
-  au! BufAdd
-endfunc
-
-func Test_arglist_w_locked_unlock()
-  au BufAdd * split
-
-  args a
-  call assert_equal(2, winnr('$'))
-  wincmd p
-  quit
-  call assert_equal(1, winnr('$'))
-
-  argedit b
-  call assert_equal(2, winnr('$'))
-  wincmd p
-  quit
-  call assert_equal(1, winnr('$'))
-
-  %argd
-  %bw!
-  au! BufAdd
 endfunc
 
 " vim: shiftwidth=2 sts=2 expandtab

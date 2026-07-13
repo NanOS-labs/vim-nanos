@@ -1,4 +1,4 @@
-*vim9class.txt*	For Vim version 9.2.  Last change: 2026 May 21
+*vim9class.txt*	For Vim version 9.1.  Last change: 2024 Jan 01
 
 
 		  VIM REFERENCE MANUAL	  by Bram Moolenaar
@@ -51,6 +51,7 @@ An interface is used to specify properties of an object:
 
 The class hierarchy allows for single inheritance.  Otherwise interfaces are
 to be used where needed.
+
 
 Class modeling ~
 
@@ -105,21 +106,22 @@ The object variables "lnum" and "col" can be accessed directly: >
 	echo $'The text position is ({pos.lnum}, {pos.col})'
 <						    *E1317* *E1327* *:this*
 If you have been using other object-oriented languages you will notice that in
-Vim, within a class definition, the declared object members are consistently
-referred to with the "this." prefix.  This is different from languages like
-Java and TypeScript.  The naming convention makes the object members easy to
-spot.  Also, when a variable does not have the "this." prefix you know it is
-not an object variable.
-							*E1411*
+Vim, within a class definition, the object members are consistently referred
+to with the "this." prefix.  This is different from languages like Java and
+TypeScript.  The naming convention makes the object members easy to spot.
+Also, when a variable does not have the "this." prefix you know it is not an
+object variable.
+								*E1411*
 From outside the class definition, access an object's methods and variables by
 using the object name followed by a dot following by the member: >
 
 	pos.lnum
-	pos.SetCol(10)
+	pos.setCol(10)
 <
-							*E1405*
+							*E1405* *E1406*
 A class name cannot be used as an expression.  A class name cannot be used in
 the left-hand-side of an assignment.
+
 
 Object variable write access ~
 						    *read-only-variable*
@@ -162,7 +164,7 @@ from outside the class or its sub-classes, you can make them protected.  This
 is done by prefixing an underscore to the name: >
 
 	var _lnum: number
-	var _col: number
+	var _col number
 
 Now you need to provide methods to get the value of the protected variables.
 These are commonly called getters.  We recommend using a name that starts with
@@ -172,7 +174,7 @@ These are commonly called getters.  We recommend using a name that starts with
 	   return this._lnum
 	enddef
 
-	def GetCol(): number
+	def GetCol() number
 	   return this._col
 	enddef
 
@@ -270,9 +272,6 @@ no need to call "super()" or "new()" on the parent.
 When defining the new() method the return type should not be specified.  It
 always returns an object of the class.
 
-The new() method can be made a protected method by using "_new()".  This can
-be used to support the singleton design pattern.
-
 							*E1386*
 When invoking an object method, the method name should be preceded by the
 object variable name.  An object method cannot be invoked using the class
@@ -282,7 +281,7 @@ name.
 
 3.  Class Variables and Methods			*Vim9-class-member*
 
-				    *:static* *E1329* *E1337* *E1338* *E1368*
+					    *:static* *E1337* *E1338* *E1368*
 Class members are declared with "static".  They are used by the name without a
 prefix in the class where they are defined: >
 
@@ -329,27 +328,9 @@ variables but they have no access to the object variables, they cannot use the
 	   enddef
 	endclass
 
-Inside the class, the class method can be called by name directly, outside the
-class, the class name must be prefixed: `OtherThing.ClearTotalSize()`.  Also,
-the name prefix must be used for public class methods in the special contexts
-of class variable initializers and of lambda expressions and nested functions:
->
-    class OtherThing
-	static var name: string = OtherThing.GiveName()
-
-	static def GiveName(): string
-	    def DoGiveName(): string
-		return OtherThing.NameAny()
-	    enddef
-
-	    return DoGiveName()
-	enddef
-
-	static def NameAny(): string
-	    return "any"
-	enddef
-    endclass
-<
+Inside the class the class method can be called by name directly, outside the
+class the class name must be prefixed: `OtherThing.ClearTotalSize()`.  To use
+a super class method in a child class, the class name must be prefixed.
 
 Just like object methods the access can be made protected by using an
 underscore as the first character in the method name: >
@@ -511,21 +492,17 @@ prefix when defining the method: >
 
 	abstract class Shape
 	   abstract def Draw()
+	   abstract static def SetColor()
 	endclass
 <
 A static method in an abstract class cannot be an abstract method.
 
-						*E1404*
-An interface method cannot be an abstract method.
-
 						*E1373*
-A non-abstract class extending the abstract class must implement all the
-abstract methods.  The signature (arguments, argument types and return type)
-must be exactly the same.  If the return type of a method is a class, then
-that class or one of its subclasses can be used in the extended method.
-
-						*E1431*
-An abstract method in an abstract super class cannot be invoked.
+A class extending the abstract class must implement all the abstract methods.
+The signature (arguments, argument types and return type) must be exactly the
+same.  If the return type of a method is a class, then that class or one of
+its subclasses can be used in the extended method.  Class methods in an
+abstract class can also be abstract methods.
 
 ==============================================================================
 
@@ -590,8 +567,6 @@ protected object methods, class variables and class methods.
 An interface can extend another interface using "extends".  The sub-interface
 inherits all the instance variables and methods from the super interface.
 
-An interface cannot be defined inside a function.	*E1436*
-
 ==============================================================================
 
 6.  More class details				*Vim9-class* *Class* *class*
@@ -602,7 +577,7 @@ A class is defined between `:class` and `:endclass`.  The whole class is
 defined in one script file.  It is not possible to add to a class later.
 
 A class can only be defined in a |Vim9| script file.  *E1316*
-A class cannot be defined inside a function.  *E1429*
+A class cannot be defined inside a function.
 
 It is possible to define more than one class in a script file.  Although it
 usually is better to export only one main class.  It can be useful to define
@@ -632,26 +607,23 @@ once.  They can appear in any order, although this order is recommended: >
 	extends ClassName
 	implements InterfaceName, OtherInterface
 	specifies SomeInterface
-<
-The "specifies" feature is currently not implemented.
-
-						*E1355* *E1369* *E1406*
+<							*E1355* *E1369*
 Each variable and method name can be used only once.  It is not possible to
 define a method with the same name and different type of arguments.  It is not
-possible to use a public and protected member variable with the same name.  An
+possible to use a public and protected member variable with the same name.  A
 object variable name used in a super class cannot be reused in a child class.
+
 
 Object Variable Initialization ~
 
-							*E1430*
 If the type of a variable is not explicitly specified in a class, then it is
 set to "any" during class definition.  When an object is instantiated from the
 class, then the type of the variable is set.
 
 The following reserved keyword names cannot be used as an object or class
 variable name: "super", "this", "true", "false", "null", "null_blob",
-"null_channel", "null_class", "null_dict", "null_function", "null_job",
-"null_list", "null_object", "null_partial" and "null_string".
+"null_dict", "null_function", "null_list", "null_partial", "null_string",
+"null_channel" and "null_job".
 
 Extending a class ~
 							*extends*
@@ -661,8 +633,8 @@ The basic idea is to build on top of an existing class, add properties to it.
 The extended class is called the "base class" or "super class".  The new class
 is called the "child class".
 
-Object variables from the base class are all taken over by the child class.
-It is not possible to override them (unlike some other languages).
+Object variables from the base class are all taken over by the child class.  It
+is not possible to override them (unlike some other languages).
 
 						*E1356* *E1357* *E1358*
 Object methods of the base class can be overruled.  The signature (arguments,
@@ -698,12 +670,13 @@ A class can implement one or more interfaces.  The "implements" keyword can
 only appear once *E1350* .  Multiple interfaces can be specified, separated by
 commas.  Each interface name can appear only once. *E1351*
 
+
 A class defining an interface ~
 							*specifies*
 A class can declare its interface, the object variables and methods, with a
 named interface.  This avoids the need for separately specifying the
 interface, which is often done in many languages, especially Java.
-TODO: This is currently not implemented.
+
 
 Items in a class ~
 						*E1318* *E1325* *E1388*
@@ -715,7 +688,7 @@ Inside a class, in between `:class` and `:endclass`, these items can appear:
 - A class variable declaration: >
 	static var _protectedClassVariableName: memberType
 	static var readonlyClassVariableName: memberType
-	public static var readwriteClassVariableName: memberType
+	static var public readwriteClassVariableName: memberType
 - A constructor method: >
 	def new(arguments)
 	def newName(arguments)
@@ -738,35 +711,9 @@ The initialization isn't needed, the list is empty by default.
 							*E1330*
 Some types cannot be used, such as "void", "null" and "v:none".
 
-Builtin Object Methods ~
-                                                       *builtin-object-methods*
-Some of the builtin functions like |empty()|, |len()| and |string()| can be
-used with an object.  An object can implement a method with the same name as
-these builtin functions to return an object-specific value.
-
-							*E1412*
-The following builtin methods are supported:
-							*object-empty()*
-    empty()  Invoked by the |empty()| function to check whether an object is
-	     empty.  If this method is missing, then true is returned.  This
-	     method should not accept any arguments and must return a boolean.
-							*object-len()*
-    len()    Invoked by the |len()| function to return the length of an
-	     object.  If this method is missing in the class, then an error is
-	     given and zero is returned.  This method should not accept any
-	     arguments and must return a number.
-							*object-string()*
-    string() Invoked by the |string()| function to get a textual
-	     representation of an object.  Also used by the |:echo| command
-	     for an object.  If this method is missing in the class, then a
-	     built-in default textual representation is used.  This method
-	     should not accept any arguments and must return a string.
-
-							*E1413*
-A class method cannot be used as a builtin method.
 
 Defining an interface ~
-			*interface* *Interface* *:interface* *:endinterface*
+					*Interface* *:interface* *:endinterface*
 An interface is defined between `:interface` and `:endinterface`.  It may be
 prefixed with `:export`: >
 
@@ -794,13 +741,15 @@ An interface can only be defined in a |Vim9| script file.  *E1342*
 An interface cannot "implement" another interface but it can "extend" another
 interface. *E1381*
 
+
 null object ~
 
 When a variable is declared to have the type of an object, but it is not
 initialized, the value is null.  When trying to use this null object Vim often
 does not know what class was supposed to be used.  Vim then cannot check if
-a variable name is correct and you will get a "Using a null object" error,
+a variable name is correct and you will get an "Using a null object" error,
 even when the variable name is invalid. *E1360* *E1362*
+
 
 Default constructor ~
 							*default-constructor*
@@ -838,7 +787,7 @@ the name, you can define the constructor like this: >
 <
 When using the default new() method, if the order of the object variables in
 the class is changed later, then all the callers of the default new() method
-need to change.  To avoid this, the new() method can be explicitly defined
+needs to change.  To avoid this, the new() method can be explicitly defined
 without any arguments.
 
 							*E1328*
@@ -882,46 +831,12 @@ Note that the method name must start with "new".  If there is no method called
 "new()" then the default constructor is added, even though there are other
 constructor methods.
 
-Using variable type "any" for an Object~
-							*obj-var-type-any*
-You can use a variable declared with type "any" to hold an object.  e.g.
->
-    vim9script
-    class A
-	var n = 10
-	def Get(): number
-	    return this.n
-	enddef
-    endclass
 
-    def Fn(o: any)
-	echo o.n
-	echo o.Get()
-    enddef
-
-    var a = A.new()
-    Fn(a)
-<
-In this example, Vim cannot determine the type of the parameter "o" for
-function Fn() at compile time.  It can be either a |Dict| or an |Object|
-value.  Therefore, at runtime, when the type is known, the object member
-variable and method are looked up.  This process is not efficient, so it is
-recommended to use a more specific type whenever possible for better
-efficiency.
-
-Compiling methods in a Class ~
-							*class-compile*
-The |:defcompile| command can be used to compile all the class and object
-methods defined in a class: >
-
-	defcompile MyClass	# Compile class "MyClass"
-	defcompile		# Compile the classes in the current script
-<
 ==============================================================================
 
 7.  Type definition				*typealias* *Vim9-type* *:type*
 
-						*E1393* *E1396* *E1397* *E1398*
+					*E1393* *E1395* *E1396* *E1397* *E1398*
 A type definition is giving a name to a type specification.  This is also
 known as a "type alias".  The type alias can be used wherever a built-in type
 can be used.  Example: >
@@ -942,7 +857,7 @@ types can be aliased.
 A type alias can be created only at the script level and not inside a
 function.  A type alias can be exported and used across scripts.
 
-							*E1403* *E1407*
+					*E1400* *E1401* *E1402* *E1403* *E1407*
 A type alias cannot be used as an expression.  A type alias cannot be used in
 the left-hand-side of an assignment.
 
@@ -957,140 +872,19 @@ aliased: >
 
 8.  Enum					*Vim9-enum* *:enum* *:endenum*
 
-						*enum* *E1418* *E1419* *E1420*
+{not implemented yet}
+
 An enum is a type that can have one of a list of values.  Example: >
 
-    enum Color
-	White,
-	Red,
-	Green, Blue, Black
-    endenum
-<
-						*enumvalue* *E1422* *E1428*
-The enum values are separated by commas.  More than one enum value can be
-listed in a single line.  The final enum value should not be followed by a
-comma.  Duplicate enum values are not allowed.
+	:enum Color
+		White
+		Red
+		Green
+		Blue
+		Black
+	:endenum
 
-An enum value is accessed using the enum name followed by the value name: >
 
-    var a: Color = Color.Blue
-<
-Enums are treated as classes, where each enum value is essentially an instance
-of that class.  Unlike typical object instantiation with the |new()| method,
-enum instances cannot be created this way.
-
-An enum can only be defined in a |Vim9| script file.	*E1414*
-An enum cannot be defined inside a function.		*E1435*
-
-							*E1415*
-An enum name must start with an uppercase letter.  The name of an enum value
-in an enum can start with an upper or lowercase letter.
-
-							*E1416*
-An enum can implement an interface but cannot extend a class: >
-
-    enum MyEnum implements MyIntf
-	Value1,
-	Value2
-
-	def SomeMethod()
-	enddef
-    endenum
-<
-							*enum-constructor*
-The enum value objects in an enum are constructed like any other objects using
-the |new()| method.  Arguments can be passed to the enum constructor by
-specifying them after the enum value name, just like calling a function.  The
-default constructor doesn't have any arguments.
-
-							*E1417*
-An enum can contain class variables, class methods, object variables and
-object methods.  The methods in an enum cannot be |:abstract| methods.
-
-The following example shows an enum with object variables and methods: >
-
-    vim9script
-    enum Planet
-	Earth(1, false),
-	Jupiter(95, true),
-	Saturn(146, true)
-
-	var moons: number
-	var has_rings: bool
-	def GetMoons(): number
-	    return this.moons
-	enddef
-    endenum
-    echo Planet.Jupiter.GetMoons()
-    echo Planet.Earth.has_rings
-<
-						*E1421* *E1423* *E1424* *E1425*
-Enums and their values are immutable.  They cannot be utilized as numerical or
-string types.  Enum values can declare mutable instance variables.
-
-						*enum-name* *E1427*
-Each enum value object has a "name" instance variable which contains the name
-of the enum value.  This is a readonly variable.
-
-						*enum-ordinal* *E1426*
-Each enum value has an associated ordinal number starting with 0.  The ordinal
-number of an enum value can be accessed using the "ordinal" instance variable.
-This is a readonly variable.  Note that if the ordering of the enum values in
-an enum is changed, then their ordinal values will also change.
-
-						*enum-values*
-All the values in an enum can be accessed using the "values" class variable
-which is a List of the enum objects.  This is a readonly variable.
-
-Example: >
-    enum Planet
-	Mercury,
-	Venus,
-	Earth
-    endenum
-
-    echo Planet.Mercury
-    echo Planet.Venus.name
-    echo Planet.Venus.ordinal
-    for p in Planet.values
-	# ...
-    endfor
-<
-An enum is a class with class variables for the enum value objects and object
-variables for the enum value name and the enum value ordinal: >
-
-    enum Planet
-	Mercury,
-	Venus
-    endenum
-<
-The above enum definition is equivalent to the following class definition: >
-
-    class Planet
-      public static final Mercury: Planet = Planet.new('Mercury', 0)
-      public static final Venus: Planet = Planet.new('Venus', 1)
-
-      public static const values: list<Planet> = [Planet.Mercury, Planet.Venus]
-
-      public const name: string
-      public const ordinal: number
-    endclass
-<
-A enum can contain object variables and methods just like a regular class: >
-
-    enum Color
-	Cyan([0, 255, 255]),
-	Magenta([255, 0, 255]),
-	Gray([128, 128, 128])
-
-	var rgb_values: list<number>
-
-	def Get_RGB(): list<number>
-	    return this.rgb_values
-	enddef
-    endenum
-    echo Color.Magenta.Get_RGB()
-<
 ==============================================================================
 
 9.  Rationale
@@ -1139,6 +933,7 @@ For |Vim9| script using the same method name for all constructors seemed like
 the right choice, and by calling it new() the relation between the caller and
 the method being called is obvious.
 
+
 No overloading of the constructor ~
 
 In Vim script, both legacy and |Vim9| script, there is no overloading of
@@ -1159,6 +954,7 @@ That way multiple constructors with different arguments are possible, while it
 is very easy to see which constructor is being used.  And the type of
 arguments can be properly checked.
 
+
 No overloading of methods ~
 
 Same reasoning as for the constructor: It is often not obvious what type
@@ -1166,6 +962,7 @@ arguments have, which would make it difficult to figure out what method is
 actually being called.  Better just give the methods a different name, then
 type checking will make sure it works as you intended.  This rules out
 polymorphism, which we don't really need anyway.
+
 
 Single inheritance and interfaces ~
 
@@ -1182,6 +979,7 @@ it will be checked if that change was also changed.  The mechanism to assume a
 class implements an interface just because the methods happen to match is
 brittle and leads to obscure problems, let's not do that.
 
+
 Using "this.variable" everywhere ~
 
 The object variables in various programming languages can often be accessed in
@@ -1195,10 +993,11 @@ in the body, while for other variables this is not needed and often omitted.
 This leads to a mix of variables with and without "this.", which is
 inconsistent.
 
-For |Vim9| classes the "this." prefix is always used for declared methods and
+For |Vim9| classes the "this." prefix is always used.  Also for declaring the
 variables.  Simple and consistent.  When looking at the code inside a class
 it's also directly clear which variable references are object variables and
 which aren't.
+
 
 Using class variables ~
 
@@ -1212,6 +1011,7 @@ TypeScript prepends the class name before the class variable name, also inside
 the class.  This has two problems: The class name can be rather long, taking
 up quite a bit of space, and when the class is renamed all these places need
 to be changed too.
+
 
 Declaring object and class variables ~
 
@@ -1229,7 +1029,7 @@ Following that Vim object variables could be declared like this: >
 	endclass
 
 Some users pointed out that this looks more like an assignment than a
-declaration.  Adding "var" and omitting "this." changes that: >
+declaration.  Adding "var" changes that: >
 	class Point
 	  var x: number
 	  var y = 0
@@ -1265,6 +1065,7 @@ However, it is more common for languages to reuse their general variable and
 function declaration syntax for class/object variables and methods.  Vim9 also
 reuses the general function declaration syntax for methods.  So, for the sake
 of consistency, we require "var" in these declarations.
+
 
 Using "ClassName.new()" to construct an object ~
 
@@ -1329,6 +1130,7 @@ An alternative would have been using the "protected" keyword, just like
 "public" changes the access in the other direction.  Well, that's just to
 reduce the number of keywords.
 
+
 No private object variables ~
 
 Some languages provide several ways to control access to object variables.
@@ -1354,6 +1156,7 @@ the restrictions?
 
 Thoughts:
 - Generics for a class: `class <Tkey, Tentry>`
+- Generics for a function: `def <Tkey> GetLast(key: Tkey)`
 - Mixins: not sure if that is useful, leave out for simplicity.
 
 Some things that look like good additions:

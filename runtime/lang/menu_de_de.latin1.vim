@@ -1,9 +1,9 @@
 " Menu Translations:	German / Deutsch
 " Maintainer:		Jón Arnar Briem <jonbriem@gmail.com>
-" Originally By:	Georg Dahn <gorgyd@yahoo.co.uk>
-"			Marcin Dalecki <dalecki@cs.net.pl>
-"			Johannes Zellner <johannes@zellner.org>
-" Last Change:		2024 May 2
+" Originally By:    Georg Dahn <gorgyd@yahoo.co.uk>
+"                   Marcin Dalecki <dalecki@cs.net.pl>
+"			        Johannes Zellner <johannes@zellner.org>
+" Last Change:	Mon, 1 April 2019
 " vim:set foldmethod=marker tabstop=8:
 " Original translations
 
@@ -74,7 +74,7 @@ menutrans Insert\ mode					Einfüge-Modus
 menutrans Block\ and\ Insert				Block-Auswahl\ und\ Einfüge-Modus
 menutrans Always					Immer
 menutrans Toggle\ Insert\ &Mode<Tab>:set\ im!		Einfüge-&Modus\ ein-\ und\ ausschalten<Tab>:set\ im!
-menutrans Toggle\ Vi\ C&ompatibility<Tab>:set\ cp!		Vi-Kompatibilität\ ein-\ und\ ausschalten<Tab>:set\ cp!
+menutrans Toggle\ Vi\ C&ompatible<Tab>:set\ cp!		Vi-Kompatibilität\ ein-\ und\ ausschalten<Tab>:set\ cp!
 
 menutrans Search\ &Path\.\.\.				Such-&Pfad\.\.\.
 menutrans Ta&g\ Files\.\.\.				Ta&g-Dateien\.\.\.
@@ -183,7 +183,7 @@ menutrans Conve&rt\ back<Tab>:%!xxd\ -r			Zurück\ konvertieren<Tab>:%!xxd\ -r
 
 " {{{ SYNTAX / SYNTAX
 menutrans &Syntax				&Syntax
-menutrans &Show\ File\ Types\ in\ menu		Dateitypen\ an&zeigen
+menutrans &Show\ filetypes\ in\ menu		Dateitypen\ an&zeigen
 menutrans Set\ '&syntax'\ only			Nur\ '&syntax'\ setzen
 menutrans Set\ '&filetype'\ too			Auch\ '&filetype'\ setzen
 menutrans &Off					&Aus

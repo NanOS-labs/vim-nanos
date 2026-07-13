@@ -1,9 +1,10 @@
 " Test spell checking
 " Note: this file uses latin1 encoding, but is used with utf-8 encoding.
 
+source check.vim
 CheckFeature spell
 
-source util/screendump.vim
+source screendump.vim
 
 func TearDown()
   set nospell
@@ -297,20 +298,6 @@ func Test_compl_with_CTRL_X_CTRL_K_using_spell()
 
   bwipe!
   set spell& spelllang& dictionary& ignorecase&
-endfunc
-
-func Test_compl_with_CTRL_X_s()
-  new
-  set spell spelllang=en_us showmode
-  inoremap <buffer><F2> <Cmd>let g:msg = Screenline(&lines)<CR>
-
-  call feedkeys("STheatre\<C-X>s\<F2>\<C-Y>\<Esc>", 'tx')
-  call assert_equal(['Theater'], getline(1, '$'))
-  call assert_match('(^S^N^P)', g:msg)
-
-  bwipe!
-  set spell& spelllang& showmode&
-  unlet g:msg
 endfunc
 
 func Test_spellrepall()
@@ -912,10 +899,7 @@ func Test_spellsuggest_too_deep()
   " This was incrementing "depth" over MAXWLEN.
   new
   norm s000G00ý000000000000
-  try
-    sil norm ..vzG................vvzG0     v z=
-  catch /E759:/
-  endtry
+  sil norm ..vzG................vvzG0     v z=
   bwipe!
 endfunc
 
@@ -1569,19 +1553,5 @@ let g:test_data_aff_sal = [
       \"SAL ZZ-                  _",
       \"SAL Z                    S",
       \ ]
-
-func Test_suggest_spell_restore()
-  norm! z=
-  call assert_equal(0, &spell)
-  set spelllang=
-  sil! norm! z=
-  call assert_equal(0, &spell)
-  set spelllang=en
-  call setline(1, ['1','2'])
-  norm! vjz=
-  call assert_equal(0, &spell)
-  set spelllang&
-  bwipe!
-endfunc
 
 " vim: shiftwidth=2 sts=2 expandtab

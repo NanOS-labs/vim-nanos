@@ -1,13 +1,11 @@
 " Vim filetype plugin file
 " Language:      Perl POD format
-" Maintainer:    vim-perl <vim-perl@googlegroups.com> (need to be subscribed to post)
+" Maintainer:    vim-perl <vim-perl@googlegroups.com>
 " Author:        Doug Kearns <dougkearns@gmail.com>
 " Homepage:      https://github.com/vim-perl/vim-perl
 " Bugs/requests: https://github.com/vim-perl/vim-perl/issues
 " License:       Vim License (see :help license)
 " Last Change:   2023 Jul 05
-" Last Change:   2021 Oct 19
-"                2024 Jan 14 by Vim Project (browsefilter)
 
 if exists("b:did_ftplugin")
   finish
@@ -35,12 +33,8 @@ endif
 if (has("gui_win32") || has("gui_gtk")) && !exists("b:browsefilter")
   let b:browsefilter = "POD Source Files (*.pod)\t*.pod\n" .
         \              "Perl Source Files (*.pl)\t*.pl\n" .
-        \              "Perl Modules (*.pm)\t*.pm\n"
-  if has("win32")
-    let b:browsefilter .= "All Files (*.*)\t*\n"
-  else
-    let b:browsefilter .= "All Files (*)\t*\n"
-  endif
+        \              "Perl Modules (*.pm)\t*.pm\n" .
+        \              "All Files (*.*)\t*.*\n"
   let b:undo_ftplugin .= " | unlet! b:browsefilter"
 endif
 

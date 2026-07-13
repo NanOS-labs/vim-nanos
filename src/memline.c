@@ -44,7 +44,9 @@
 
 #include "vim.h"
 
-#include <time.h>
+#ifndef UNIX		// it's in os_unix.h for Unix
+# include <time.h>
+#endif
 
 #if defined(SASC) || defined(__amigaos4__)
 # include <proto/dos.h>	    // for Open() and Close()
@@ -69,7 +71,7 @@ typedef struct pointer_entry	PTR_EN;	    // block/line-count pair
 #define BLOCK0_ID1_C4  's'		    // block 0 id 1 'cm' 4
 
 #if defined(FEAT_CRYPT)
-static const int id1_codes[] = {
+static int id1_codes[] = {
     BLOCK0_ID1_C0,  // CRYPT_M_ZIP
     BLOCK0_ID1_C1,  // CRYPT_M_BF
     BLOCK0_ID1_C2,  // CRYPT_M_BF2
@@ -305,9 +307,9 @@ ml_open(buf_T *buf)
      * When 'updatecount' is non-zero swap file may be opened later.
      */
     if (p_uc && buf->b_p_swf)
-	buf->b_may_swap = true;
+	buf->b_may_swap = TRUE;
     else
-	buf->b_may_swap = false;
+	buf->b_may_swap = FALSE;
 
     /*
      * Open the memfile.  No swap file is created yet.
@@ -421,7 +423,7 @@ error:
     return FAIL;
 }
 
-#if defined(FEAT_CRYPT)
+#if defined(FEAT_CRYPT) || defined(PROTO)
 /*
  * Swapfile encryption is not supported by XChaCha20.  If this crypt method is
  * used then disable the swapfile, to avoid plain text being written to disk,
@@ -516,10 +518,10 @@ ml_set_crypt_key(
 	return;  // no memfile yet, nothing to do
     old_method = crypt_method_nr_from_name(old_cm);
 
-# ifdef FEAT_CRYPT
+#ifdef FEAT_CRYPT
     if (crypt_may_close_swapfile(buf, buf->b_p_key, crypt_get_method_nr(buf)))
 	return;
-# endif
+#endif
 
     // First make sure the swapfile is in a consistent state, using the old
     // key and method.
@@ -793,7 +795,7 @@ ml_open_file(buf_T *buf)
 	fname = vim_tempname('s', FALSE);
 	if (fname != NULL)
 	    (void)mf_open_file(mfp, fname);	// consumes fname!
-	buf->b_may_swap = false;
+	buf->b_may_swap = FALSE;
 	return;
     }
 #endif
@@ -851,7 +853,7 @@ ml_open_file(buf_T *buf)
     }
 
     // don't try to open a swap file again
-    buf->b_may_swap = false;
+    buf->b_may_swap = FALSE;
 }
 
 /*
@@ -1021,7 +1023,7 @@ set_b0_fname(ZERO_BL *b0p, buf_T *buf)
 	forward_slash(b0p->b0_fname);
 # endif
 #else
-	size_t	flen;
+	size_t	flen, ulen;
 	char_u	uname[B0_UNAME_SIZE];
 
 	/*
@@ -1031,12 +1033,11 @@ set_b0_fname(ZERO_BL *b0p, buf_T *buf)
 	 * First replace home dir path with "~/" with home_replace().
 	 * Then insert the user name to get "~user/".
 	 */
-	flen = home_replace(NULL, buf->b_ffname, b0p->b0_fname,
+	home_replace(NULL, buf->b_ffname, b0p->b0_fname,
 						   B0_FNAME_SIZE_CRYPT, TRUE);
 	if (b0p->b0_fname[0] == '~')
 	{
-	    size_t  ulen;
-
+	    flen = STRLEN(b0p->b0_fname);
 	    // If there is no user name or it is too long, don't use "~/"
 	    if (get_user_name(uname, B0_UNAME_SIZE) == FAIL
 		   || (ulen = STRLEN(uname)) + flen > B0_FNAME_SIZE_CRYPT - 1)
@@ -1137,7 +1138,7 @@ add_b0_fenc(
     static int
 swapfile_process_running(ZERO_BL *b0p, char_u *swap_fname UNUSED)
 {
-# if defined(HAVE_SYSINFO) && defined(HAVE_SYSINFO_UPTIME)
+#if defined(HAVE_SYSINFO) && defined(HAVE_SYSINFO_UPTIME)
     stat_T	    st;
     struct sysinfo  sinfo;
 
@@ -1596,12 +1597,8 @@ ml_recover(int checkext)
 			if (!cannot_open)
 			{
 			    line_count = pp->pb_pointer[idx].pe_line_count;
-			    linenr_T pe_old_lnum = pp->pb_pointer[idx].pe_old_lnum;
-			    // Validate pe_line_count and pe_old_lnum from the
-			    // untrusted swap file before passing to readfile().
-			    if (line_count <= 0 || pe_old_lnum < 1 ||
-				    readfile(curbuf->b_ffname, NULL, lnum,
-					pe_old_lnum - 1,
+			    if (readfile(curbuf->b_ffname, NULL, lnum,
+					pp->pb_pointer[idx].pe_old_lnum - 1,
 					line_count, NULL, 0) != OK)
 				cannot_open = TRUE;
 			    else
@@ -1632,27 +1629,6 @@ ml_recover(int checkext)
 		    bnum = pp->pb_pointer[idx].pe_bnum;
 		    line_count = pp->pb_pointer[idx].pe_line_count;
 		    page_count = pp->pb_pointer[idx].pe_page_count;
-		    // Validate pe_bnum and pe_page_count from the untrusted
-		    // swap file before passing to mf_get(), which uses
-		    // page_count to calculate allocation size.  A bogus value
-		    // (e.g. 0x40000000) would cause a multi-GB allocation.
-		    // pe_page_count must be >= 1 and bnum + page_count must
-		    // not exceed the number of pages in the swap file.
-		    if (page_count < 1
-			    || bnum + page_count > mfp->mf_blocknr_max + 1)
-		    {
-			++error;
-			ml_append(lnum++,
-				(char_u *)_("???ILLEGAL BLOCK NUMBER"),
-				(colnr_T)0, TRUE);
-			// Skip this entry and pop back up the stack to keep
-			// recovering whatever else we can.
-			idx = ip->ip_index + 1;
-			bnum = ip->ip_bnum;
-			page_count = 1;
-			--buf->b_ml.ml_stack_top;
-			continue;
-		    }
 		    idx = 0;
 		    continue;
 		}
@@ -1691,15 +1667,6 @@ ml_recover(int checkext)
 			dp->db_txt_end = page_count * mfp->mf_page_size;
 		    }
 
-		    if (dp->db_txt_start < HEADER_SIZE
-			    || dp->db_txt_start > dp->db_txt_end)
-		    {
-			ml_append(lnum++, (char_u *)_("??? block header corrupted"),
-								    (colnr_T)0, TRUE);
-			++error;
-			has_error = TRUE;
-			dp->db_txt_start = dp->db_txt_end;
-		    }
 		    // Make sure there is a NUL at the end of the block so we
 		    // don't go over the end when copying text.
 		    *((char_u *)dp + dp->db_txt_end - 1) = NUL;
@@ -1787,7 +1754,7 @@ ml_recover(int checkext)
 	for (idx = 1; idx <= lnum; ++idx)
 	{
 	    // Need to copy one line, fetching the other one may flush it.
-	    p = vim_strnsave(ml_get(idx), ml_get_len(idx));
+	    p = vim_strsave(ml_get(idx));
 	    i = STRCMP(p, ml_get(idx + lnum));
 	    vim_free(p);
 	    if (i != 0)
@@ -1902,12 +1869,13 @@ recover_names(
 {
     int		num_names;
     char_u	*(names[6]);
+    char_u	*tail;
     char_u	*p;
     int		num_files;
     int		file_count = 0;
     char_u	**files;
     char_u	*dirp;
-    string_T	dir_name;
+    char_u	*dir_name;
     char_u	*fname_res = NULL;
 #ifdef HAVE_READLINK
     char_u	fname_buf[MAXPATHL];
@@ -1936,35 +1904,35 @@ recover_names(
      * Do the loop for every directory in 'directory'.
      * First allocate some memory to put the directory name in.
      */
-    dir_name.string = alloc(STRLEN(p_dir) + 1);
+    dir_name = alloc(STRLEN(p_dir) + 1);
     dirp = p_dir;
-    while (dir_name.string != NULL && *dirp)
+    while (dir_name != NULL && *dirp)
     {
 	/*
 	 * Isolate a directory name from *dirp and put it in dir_name (we know
 	 * it is large enough, so use 31000 for length).
 	 * Advance dirp to next directory name.
 	 */
-	dir_name.length = (size_t)copy_option_part(&dirp, dir_name.string, 31000, ",");
+	(void)copy_option_part(&dirp, dir_name, 31000, ",");
 
-	if (dir_name.string[0] == '.' && dir_name.string[1] == NUL)	// check current dir
+	if (dir_name[0] == '.' && dir_name[1] == NUL)	// check current dir
 	{
 	    if (fname == NULL)
 	    {
 #ifdef VMS
-		names[0] = vim_strnsave((char_u *)"*_sw%", STRLEN_LITERAL("*_sw%"));
+		names[0] = vim_strsave((char_u *)"*_sw%");
 #else
-		names[0] = vim_strnsave((char_u *)"*.sw?", STRLEN_LITERAL("*.sw?"));
+		names[0] = vim_strsave((char_u *)"*.sw?");
 #endif
 #if defined(UNIX) || defined(MSWIN)
 		// For Unix names starting with a dot are special.  MS-Windows
 		// supports this too, on some file systems.
-		names[1] = vim_strnsave((char_u *)".*.sw?", STRLEN_LITERAL(".*.sw?"));
-		names[2] = vim_strnsave((char_u *)".sw?", STRLEN_LITERAL(".sw?"));
+		names[1] = vim_strsave((char_u *)".*.sw?");
+		names[2] = vim_strsave((char_u *)".sw?");
 		num_names = 3;
 #else
 # ifdef VMS
-		names[1] = vim_strnsave((char_u *)".*_sw%", STRLEN_LITERAL(".*_sw%"));
+		names[1] = vim_strsave((char_u *)".*_sw%");
 		num_names = 2;
 # else
 		num_names = 1;
@@ -1978,27 +1946,20 @@ recover_names(
 	{
 	    if (fname == NULL)
 	    {
-		string_T    ret;
-
 #ifdef VMS
-		names[0] = concat_fnames(dir_name.string, dir_name.length,
-		    (char_u *)"*_sw%", STRLEN_LITERAL("*_sw%"), TRUE, &ret);
+		names[0] = concat_fnames(dir_name, (char_u *)"*_sw%", TRUE);
 #else
-		names[0] = concat_fnames(dir_name.string, dir_name.length,
-		    (char_u *)"*.sw?", STRLEN_LITERAL("*.sw?"), TRUE, &ret);
+		names[0] = concat_fnames(dir_name, (char_u *)"*.sw?", TRUE);
 #endif
 #if defined(UNIX) || defined(MSWIN)
 		// For Unix names starting with a dot are special.  MS-Windows
 		// supports this too, on some file systems.
-		names[1] = concat_fnames(dir_name.string, dir_name.length,
-		    (char_u *)".*.sw?", STRLEN_LITERAL(".*.sw?"), TRUE, &ret);
-		names[2] = concat_fnames(dir_name.string, dir_name.length,
-		    (char_u *)".sw?", STRLEN_LITERAL(".sw?"), TRUE, &ret);
+		names[1] = concat_fnames(dir_name, (char_u *)".*.sw?", TRUE);
+		names[2] = concat_fnames(dir_name, (char_u *)".sw?", TRUE);
 		num_names = 3;
 #else
 # ifdef VMS
-		names[1] = concat_fnames(dir_name.string, dir_name.length,
-		    (char_u *)".*_sw%", STRLEN_LITERAL(".*_sw%"), TRUE, &ret);
+		names[1] = concat_fnames(dir_name, (char_u *)".*_sw%", TRUE);
 		num_names = 2;
 # else
 		num_names = 1;
@@ -2007,23 +1968,20 @@ recover_names(
 	    }
 	    else
 	    {
-		char_u	*tail;
-
 #if defined(UNIX) || defined(MSWIN)
-		p = dir_name.string + dir_name.length;
-		if (after_pathsep(dir_name.string, p) && dir_name.length > 1 && p[-1] == p[-2])
+		int	len = (int)STRLEN(dir_name);
+
+		p = dir_name + len;
+		if (after_pathsep(dir_name, p) && len > 1 && p[-1] == p[-2])
 		{
 		    // Ends with '//', Use Full path for swap name
-		    tail = make_percent_swname(dir_name.string, p, fname_res);
+		    tail = make_percent_swname(dir_name, fname_res);
 		}
 		else
 #endif
 		{
-		    string_T	ret;
-
 		    tail = gettail(fname_res);
-		    tail = concat_fnames(dir_name.string, dir_name.length,
-			tail, STRLEN(tail), TRUE, &ret);
+		    tail = concat_fnames(dir_name, tail, TRUE);
 		}
 		if (tail == NULL)
 		    num_names = 0;
@@ -2120,7 +2078,7 @@ recover_names(
 	}
 	else if (do_list)
 	{
-	    if (dir_name.string[0] == '.' && dir_name.string[1] == NUL)
+	    if (dir_name[0] == '.' && dir_name[1] == NUL)
 	    {
 		if (fname == NULL)
 		    msg_puts(_("   In current directory:\n"));
@@ -2130,7 +2088,7 @@ recover_names(
 	    else
 	    {
 		msg_puts(_("   In directory "));
-		msg_home_replace(dir_name.string);
+		msg_home_replace(dir_name);
 		msg_puts(":\n");
 	    }
 
@@ -2153,16 +2111,13 @@ recover_names(
 #ifdef FEAT_EVAL
 	else if (ret_list != NULL)
 	{
-	    string_T	name;
-
 	    for (int i = 0; i < num_files; ++i)
 	    {
-		concat_fnames(dir_name.string, dir_name.length,
-		    files[i], STRLEN(files[i]), TRUE, &name);
-		if (name.string != NULL)
+		char_u *name = concat_fnames(dir_name, files[i], TRUE);
+		if (name != NULL)
 		{
-		    list_append_string(ret_list, name.string, (int)name.length);
-		    vim_free(name.string);
+		    list_append_string(ret_list, name, -1);
+		    vim_free(name);
 		}
 	    }
 	}
@@ -2175,11 +2130,11 @@ recover_names(
 	if (num_files > 0)
 	    FreeWild(num_files, files);
     }
-    vim_free(dir_name.string);
+    vim_free(dir_name);
     return file_count;
 }
 
-#if defined(UNIX) || defined(MSWIN)
+#if defined(UNIX) || defined(MSWIN) || defined(PROTO)
 /*
  * Need _very_ long file names.
  * Append the full path to name with path separators made into percent
@@ -2188,28 +2143,28 @@ recover_names(
  * removed.
  */
     char_u *
-make_percent_swname(char_u *dir, char_u *dir_end, char_u *name)
+make_percent_swname(char_u *dir, char_u *name)
 {
-    string_T	d = {NULL, 0};
-    string_T	fixed_fname;
-    char_u	*p;
+    char_u *d = NULL, *s, *f;
 
-    fixed_fname.string = fix_fname(name != NULL ? name : (char_u *)"");
-    if (fixed_fname.string == NULL)
+    f = fix_fname(name != NULL ? name : (char_u *)"");
+    if (f == NULL)
 	return NULL;
 
-    for (p = fixed_fname.string; *p != NUL; MB_PTR_ADV(p))
-	if (vim_ispathsep(*p))
-	    *p = '%';
-    fixed_fname.length = (size_t)(p - fixed_fname.string);
+    s = alloc(STRLEN(f) + 1);
+    if (s != NULL)
+    {
+	STRCPY(s, f);
+	for (d = s; *d != NUL; MB_PTR_ADV(d))
+	    if (vim_ispathsep(*d))
+		*d = '%';
 
-    // remove one trailing slash
-    p = &dir_end[-1];
-    *p = NUL;
-    concat_fnames(dir, (size_t)(p - dir), fixed_fname.string, fixed_fname.length, TRUE, &d);
-    vim_free(fixed_fname.string);
-
-    return d.string;
+	dir[STRLEN(dir) - 1] = NUL;  // remove one trailing slash
+	d = concat_fnames(dir, s, TRUE);
+	vim_free(s);
+    }
+    vim_free(f);
+    return d;
 }
 #endif
 
@@ -2219,7 +2174,7 @@ make_percent_swname(char_u *dir, char_u *dir_end, char_u *name)
 static int process_still_running;
 #endif
 
-#if defined(FEAT_EVAL)
+#if defined(FEAT_EVAL) || defined(PROTO)
 /*
  * Return information found in swapfile "fname" in dictionary "d".
  * This is used by the swapinfo() function.
@@ -2235,11 +2190,9 @@ get_b0_dict(char_u *fname, dict_T *d)
 	if (read_eintr(fd, &b0, sizeof(b0)) == sizeof(b0))
 	{
 	    if (ml_check_b0_id(&b0) == FAIL)
-		dict_add_string_len(d, "error",
-		    (char_u *)"Not a swap file", STRLEN_LITERAL("Not a swap file"));
+		dict_add_string(d, "error", (char_u *)"Not a swap file");
 	    else if (b0_magic_wrong(&b0))
-		dict_add_string_len(d, "error",
-		    (char_u *)"Magic number mismatch", STRLEN_LITERAL("Magic number mismatch"));
+		dict_add_string(d, "error", (char_u *)"Magic number mismatch");
 	    else
 	    {
 		// we have swap information
@@ -2257,11 +2210,11 @@ get_b0_dict(char_u *fname, dict_T *d)
 	    }
 	}
 	else
-	    dict_add_string_len(d, "error", (char_u *)"Cannot read file", STRLEN_LITERAL("Cannot read file"));
+	    dict_add_string(d, "error", (char_u *)"Cannot read file");
 	close(fd);
     }
     else
-	dict_add_string_len(d, "error", (char_u *)"Cannot open file", STRLEN_LITERAL("Cannot open file"));
+	dict_add_string(d, "error", (char_u *)"Cannot open file");
 }
 #endif
 
@@ -2453,12 +2406,11 @@ recov_file_names(char_u **names, char_u *path, int prepend_dot)
      */
     char_u	*p;
     int		i;
-#ifndef MSWIN
-    bool    shortname = curbuf->b_shortname;
+# ifndef MSWIN
+    int	    shortname = curbuf->b_shortname;
 
-    curbuf->b_shortname = false;
-#endif
-    string_T	ret;
+    curbuf->b_shortname = FALSE;
+# endif
 
     num_names = 0;
 
@@ -2478,11 +2430,9 @@ recov_file_names(char_u **names, char_u *path, int prepend_dot)
      * Form the normal swap file name pattern by appending ".sw?".
      */
 #ifdef VMS
-    names[num_names] = concat_fnames(path, STRLEN(path),
-	(char_u *)"_sw%", STRLEN_LITERAL("_sw%"), FALSE, &ret);
+    names[num_names] = concat_fnames(path, (char_u *)"_sw%", FALSE);
 #else
-    names[num_names] = concat_fnames(path, STRLEN(path),
-	(char_u *)".sw?", STRLEN_LITERAL(".sw?"), FALSE, &ret);
+    names[num_names] = concat_fnames(path, (char_u *)".sw?", FALSE);
 #endif
     if (names[num_names] == NULL)
 	goto end;
@@ -2501,16 +2451,16 @@ recov_file_names(char_u **names, char_u *path, int prepend_dot)
     else
 	++num_names;
 
-#ifndef MSWIN
+# ifndef MSWIN
     /*
      * Also try with 'shortname' set, in case the file is on a DOS filesystem.
      */
-    curbuf->b_shortname = true;
-# ifdef VMS
+    curbuf->b_shortname = TRUE;
+#ifdef VMS
     names[num_names] = modname(path, (char_u *)"_sw%", FALSE);
-# else
+#else
     names[num_names] = modname(path, (char_u *)".sw?", FALSE);
-# endif
+#endif
     if (names[num_names] == NULL)
 	goto end;
 
@@ -2525,12 +2475,12 @@ recov_file_names(char_u **names, char_u *path, int prepend_dot)
 	vim_free(names[num_names]);
     else
 	++num_names;
-#endif
+# endif
 
 end:
-#ifndef MSWIN
+# ifndef MSWIN
     curbuf->b_shortname = shortname;
-#endif
+# endif
 
     return num_names;
 }
@@ -2725,48 +2675,6 @@ ml_get_cursor(void)
 							curwin->w_cursor.col);
 }
 
-// return length (excluding the NUL) of the given line
-    colnr_T
-ml_get_len(linenr_T lnum)
-{
-    return ml_get_buf_len(curbuf, lnum);
-}
-
-// return length (excluding the NUL) of the text after position "pos"
-    colnr_T
-ml_get_pos_len(pos_T *pos)
-{
-    return ml_get_buf_len(curbuf, pos->lnum) - pos->col;
-}
-
-// return length (excluding the NUL) of the cursor line
-    colnr_T
-ml_get_curline_len(void)
-{
-    return ml_get_buf_len(curbuf, curwin->w_cursor.lnum);
-}
-
-// return length (excluding the NUL) of the cursor position
-    colnr_T
-ml_get_cursor_len(void)
-{
-    return ml_get_buf_len(curbuf, curwin->w_cursor.lnum) - curwin->w_cursor.col;
-}
-
-// return length (excluding the NUL) of the given line in the given buffer
-    colnr_T
-ml_get_buf_len(buf_T *buf, linenr_T lnum)
-{
-    char_u	*line;
-
-    if (*(line = ml_get_buf(buf, lnum, FALSE)) == NUL)
-	return 0;
-
-    if (buf->b_ml.ml_line_textlen <= 0)
-	buf->b_ml.ml_line_textlen = (int)STRLEN(line) + 1;
-    return buf->b_ml.ml_line_textlen - 1;
-}
-
 /*
  * Return a pointer to a line in a specific buffer
  *
@@ -2798,7 +2706,6 @@ ml_get_buf(
 errorret:
 	STRCPY(questions, "???");
 	buf->b_ml.ml_line_len = 4;
-	buf->b_ml.ml_line_textlen = buf->b_ml.ml_line_len;
 	buf->b_ml.ml_line_lnum = lnum;
 	return questions;
     }
@@ -2808,7 +2715,6 @@ errorret:
     if (buf->b_ml.ml_mfp == NULL)	// there are no lines
     {
 	buf->b_ml.ml_line_len = 1;
-	buf->b_ml.ml_line_textlen = buf->b_ml.ml_line_len;
 	return (char_u *)"";
     }
 
@@ -2821,6 +2727,7 @@ errorret:
     if (buf->b_ml.ml_line_lnum != lnum || mf_dont_release)
     {
 	unsigned    start, end;
+	colnr_T	    len;
 	int	    idx;
 
 	ml_flush_line(buf);
@@ -2856,18 +2763,10 @@ errorret:
 	    end = dp->db_txt_end;
 	else
 	    end = ((dp->db_index[idx - 1]) & DB_INDEX_MASK);
+	len = end - start;
 
 	buf->b_ml.ml_line_ptr = (char_u *)dp + start;
-	buf->b_ml.ml_line_len = end - start;
-#if defined(FEAT_BYTEOFF) && defined(FEAT_PROP_POPUP)
-	// Text properties come after a NUL byte, so ml_line_len should be
-	// larger than the size of textprop_T if there is any.
-	if (buf->b_has_textprop
-			 && (size_t)buf->b_ml.ml_line_len > sizeof(textprop_T))
-	    buf->b_ml.ml_line_textlen = 0;  // call STRLEN() later when needed
-	else
-#endif
-	    buf->b_ml.ml_line_textlen = buf->b_ml.ml_line_len;
+	buf->b_ml.ml_line_len = len;
 	buf->b_ml.ml_line_lnum = lnum;
 	buf->b_ml.ml_flags &= ~(ML_LINE_DIRTY | ML_ALLOCATED);
     }
@@ -2942,19 +2841,13 @@ add_text_props_for_append(
     {
 	if (round == 2)
 	{
-	    uint16_t pc;
-
 	    if (new_prop_count == 0)
 		return;  // nothing to do
-	    new_len = *len + (int)PROP_COUNT_SIZE
-			     + new_prop_count * (int)sizeof(textprop_T);
+	    new_len = *len + new_prop_count * sizeof(textprop_T);
 	    new_line = alloc(new_len);
 	    if (new_line == NULL)
 		return;
 	    mch_memmove(new_line, *line, *len);
-	    // Write prop_count header.
-	    pc = (uint16_t)new_prop_count;
-	    mch_memmove(new_line + *len, &pc, PROP_COUNT_SIZE);
 	    new_prop_count = 0;
 	}
 
@@ -2972,10 +2865,8 @@ add_text_props_for_append(
 		    prop.tp_flags |= TP_FLAG_CONT_PREV;
 		    prop.tp_col = 1;
 		    prop.tp_len = *len;  // not exactly the right length
-		    prop.u.tp_text_offset = 0;
-		    mch_memmove(new_line + *len + (int)PROP_COUNT_SIZE
-			    + new_prop_count * sizeof(textprop_T),
-			    &prop, sizeof(textprop_T));
+		    mch_memmove(new_line + *len + new_prop_count
+			      * sizeof(textprop_T), &prop, sizeof(textprop_T));
 		}
 		++new_prop_count;
 	    }
@@ -3001,7 +2892,7 @@ ml_append_int(
     int		line_count;	// number of indexes in current block
     int		offset;
     int		from, to;
-    long	space_needed;	// space needed for new line
+    int		space_needed;	// space needed for new line
     int		page_size;
     int		page_count;
     int		db_idx;		// index for lnum in data block
@@ -3078,7 +2969,7 @@ ml_append_int(
  * - not appending to the last line in the file
  * insert in front of the next block.
  */
-    if ((long)dp->db_free < space_needed && db_idx == line_count - 1
+    if ((int)dp->db_free < space_needed && db_idx == line_count - 1
 					    && lnum < buf->b_ml.ml_line_count)
     {
 	/*
@@ -3101,7 +2992,7 @@ ml_append_int(
 
     ++buf->b_ml.ml_line_count;
 
-    if ((long)dp->db_free >= space_needed)	// enough room in data block
+    if ((int)dp->db_free >= space_needed)	// enough room in data block
     {
 	/*
 	 * Insert the new line in an existing data block, or in the data block
@@ -3202,7 +3093,7 @@ ml_append_int(
 		data_moved = ((dp->db_index[db_idx]) & DB_INDEX_MASK) -
 							    dp->db_txt_start;
 		total_moved = data_moved + lines_moved * INDEX_SIZE;
-		if ((long)dp->db_free + total_moved >= space_needed)
+		if ((int)dp->db_free + total_moved >= space_needed)
 		{
 		    in_left = TRUE;	// put new line in left block
 		    space_needed = total_moved;
@@ -3507,16 +3398,16 @@ ml_append_int(
 #endif
 
 #ifdef FEAT_NETBEANS_INTG
-    if (!(flags & ML_APPEND_NEW) && netbeans_active())
+    if (netbeans_active())
     {
-	int line_len = (int)STRLEN(line);
-	if (line_len > 0)
-	    netbeans_inserted(buf, lnum+1, (colnr_T)0, line, line_len);
-	netbeans_inserted(buf, lnum+1, (colnr_T)line_len, (char_u *)"\n", 1);
+	if (STRLEN(line) > 0)
+	    netbeans_inserted(buf, lnum+1, (colnr_T)0, line, (int)STRLEN(line));
+	netbeans_inserted(buf, lnum+1, (colnr_T)STRLEN(line),
+							   (char_u *)"\n", 1);
     }
 #endif
 #ifdef FEAT_JOB_CHANNEL
-    if (!(flags & ML_APPEND_NEW) && buf->b_write_to_channel)
+    if (buf->b_write_to_channel)
 	channel_write_new_lines(buf);
 #endif
     ret = OK;
@@ -3547,15 +3438,11 @@ ml_append_flush(
 	ml_flush_line(buf);
 
 #ifdef FEAT_EVAL
-    if (!(flags & ML_APPEND_NEW))
-    {
-	// When inserting above recorded changes: flush the changes before
-	// changing the text.  Then flush the cached line, it may become
-	// invalid.  Skip during initial file read for performance.
-	may_invoke_listeners(buf, lnum + 1, lnum + 1, 1);
-	if (buf->b_ml.ml_line_lnum != 0)
-	    ml_flush_line(buf);
-    }
+    // When inserting above recorded changes: flush the changes before changing
+    // the text.  Then flush the cached line, it may become invalid.
+    may_invoke_listeners(buf, lnum + 1, lnum + 1, 1);
+    if (buf->b_ml.ml_line_lnum != 0)
+	ml_flush_line(buf);
 #endif
 
     return ml_append_int(buf, lnum, line, len, flags);
@@ -3597,8 +3484,8 @@ ml_append_flags(
 }
 
 
-#if defined(FEAT_SPELL) || defined(FEAT_QUICKFIX) || defined(FEAT_PROP_POPUP)
-
+#if defined(FEAT_SPELL) || defined(FEAT_QUICKFIX) || defined(FEAT_PROP_POPUP) \
+	|| defined(PROTO)
 /*
  * Like ml_append() but for an arbitrary buffer.  The buffer must already have
  * a memline.
@@ -3644,7 +3531,7 @@ ml_replace(linenr_T lnum, char_u *line, int copy)
  * Replace a line for the current buffer.  Like ml_replace() with:
  * "len_arg" is the length of the text, excluding NUL.
  * If "has_props" is TRUE then "line_arg" includes the text properties and
- * "len_arg" includes the NUL of the text and text properties.
+ * "len_arg" includes the NUL of the text.
  * When "copy" is TRUE copy the text into allocated memory, otherwise
  * "line_arg" must be allocated and will be consumed here.
  */
@@ -3684,7 +3571,7 @@ ml_replace_len(
 #ifdef FEAT_NETBEANS_INTG
     if (netbeans_active())
     {
-	netbeans_removed(curbuf, lnum, 0, (long)ml_get_len(lnum));
+	netbeans_removed(curbuf, lnum, 0, (long)STRLEN(ml_get(lnum)));
 	netbeans_inserted(curbuf, lnum, 0, line, (int)STRLEN(line));
     }
 #endif
@@ -3711,7 +3598,7 @@ ml_replace_len(
 	    size_t textproplen = curbuf->b_ml.ml_line_len - oldtextlen;
 
 	    // Need to copy over text properties, stored after the text.
-	    newline = alloc(len + textproplen);
+	    newline = alloc(len + (int)textproplen);
 	    if (newline != NULL)
 	    {
 		mch_memmove(newline, line, len);
@@ -3730,7 +3617,6 @@ ml_replace_len(
 
     curbuf->b_ml.ml_line_ptr = line;
     curbuf->b_ml.ml_line_len = len;
-    curbuf->b_ml.ml_line_textlen = !has_props ? len_arg + 1 : 0;
     curbuf->b_ml.ml_line_lnum = lnum;
     curbuf->b_ml.ml_flags = (curbuf->b_ml.ml_flags | ML_LINE_DIRTY) & ~ML_EMPTY;
 
@@ -3792,48 +3678,34 @@ adjust_text_props_for_delete(
 		textlen = STRLEN(text) + 1;
 		if ((long)textlen >= line_size)
 		{
-		    // No properties on this line.
 		    if (above)
 			internal_error("no text property above deleted line");
 		    else
 			internal_error("no text property below deleted line");
 		    return;
 		}
-		if ((long)textlen + (long)PROP_COUNT_SIZE > line_size)
-		{
-		    internal_error("text property data too short");
-		    return;
-		}
-
-		uint16_t pc;
-
-		mch_memmove(&pc, text + textlen, PROP_COUNT_SIZE);
-		this_props_len = pc * (int)sizeof(textprop_T);
+		this_props_len = line_size - (int)textlen;
 	    }
 
 	    found = FALSE;
-	    {
-		char_u *props_start = text + textlen + PROP_COUNT_SIZE;
-
-		for (done_this = 0; done_this < this_props_len;
+	    for (done_this = 0; done_this < this_props_len;
 					       done_this += sizeof(textprop_T))
-		{
-		    int		flag = above ? TP_FLAG_CONT_NEXT
+	    {
+		int	    flag = above ? TP_FLAG_CONT_NEXT
 							   : TP_FLAG_CONT_PREV;
-		    textprop_T	prop_this;
+		textprop_T  prop_this;
 
-		    mch_memmove(&prop_this, props_start + done_this,
+		mch_memmove(&prop_this, text + textlen + done_this,
 							   sizeof(textprop_T));
-		    if ((prop_this.tp_flags & flag)
-			    && prop_del.tp_id == prop_this.tp_id
-			    && prop_del.tp_type == prop_this.tp_type)
-		    {
-			found = TRUE;
-			prop_this.tp_flags &= ~flag;
-			mch_memmove(props_start + done_this, &prop_this,
+		if ((prop_this.tp_flags & flag)
+			&& prop_del.tp_id == prop_this.tp_id
+			&& prop_del.tp_type == prop_this.tp_type)
+		{
+		    found = TRUE;
+		    prop_this.tp_flags &= ~flag;
+		    mch_memmove(text + textlen + done_this, &prop_this,
 							   sizeof(textprop_T));
-			break;
-		    }
+		    break;
 		}
 	    }
 	    if (!found)
@@ -4037,23 +3909,13 @@ theend:
 #ifdef FEAT_PROP_POPUP
     if (textprop_save != NULL)
     {
-	// textprop_save is [prop_count][textprop_T...][vtext...].
-	// Skip prop_count header and pass only the textprop_T part.
-	uint16_t    pc;
-	char_u	    *props_data;
-	int	    props_bytes;
-
-	mch_memmove(&pc, textprop_save, PROP_COUNT_SIZE);
-	props_data = textprop_save + PROP_COUNT_SIZE;
-	props_bytes = pc * (int)sizeof(textprop_T);
-
 	// Adjust text properties in the line above and below.
 	if (lnum > 1)
-	    adjust_text_props_for_delete(buf, lnum - 1,
-					     props_data, props_bytes, TRUE);
+	    adjust_text_props_for_delete(buf, lnum - 1, textprop_save,
+						      (int)textprop_len, TRUE);
 	if (lnum <= buf->b_ml.ml_line_count)
-	    adjust_text_props_for_delete(buf, lnum,
-					    props_data, props_bytes, FALSE);
+	    adjust_text_props_for_delete(buf, lnum, textprop_save,
+						     (int)textprop_len, FALSE);
     }
     vim_free(textprop_save);
 #endif
@@ -4655,7 +4517,7 @@ ml_lineadd(buf_T *buf, int count)
     }
 }
 
-#if defined(HAVE_READLINK)
+#if defined(HAVE_READLINK) || defined(PROTO)
 /*
  * Resolve a symlink in the last component of a file name.
  * Note that f_resolve() does it for every part of the path, we don't do that
@@ -4762,7 +4624,7 @@ makeswapname(
     if (after_pathsep(dir_name, s) && len > 1 && s[-1] == s[-2])
     {			       // Ends with '//', Use Full path
 	r = NULL;
-	if ((s = make_percent_swname(dir_name, s, fname_res)) != NULL)
+	if ((s = make_percent_swname(dir_name, fname_res)) != NULL)
 	{
 	    r = modname(s, (char_u *)".swp", FALSE);
 	    vim_free(s);
@@ -4807,61 +4669,45 @@ get_file_in_dir(
     char_u  *fname,
     char_u  *dname)	// don't use "dirname", it is a global for Alpha
 {
-    string_T	tail;
-    string_T	retval;
+    char_u	*t;
+    char_u	*tail;
+    char_u	*retval;
+    int		save_char;
 
-    tail.string = gettail(fname);
-    tail.length = STRLEN(tail.string);
+    tail = gettail(fname);
 
     if (dname[0] == '.' && dname[1] == NUL)
-	retval.string =
-	    vim_strnsave(fname, (size_t)(tail.string - fname) + tail.length);
-    else
+	retval = vim_strsave(fname);
+    else if (dname[0] == '.' && vim_ispathsep(dname[1]))
     {
-	size_t	dname_len = STRLEN(dname);
-
-	if (dname[0] == '.' && vim_ispathsep(dname[1]))
+	if (tail == fname)	    // no path before file name
+	    retval = concat_fnames(dname + 2, tail, TRUE);
+	else
 	{
-	    if (tail.string == fname)	    // no path before file name
-		concat_fnames(dname + 2, dname_len - 2,
-		    tail.string, tail.length, TRUE, &retval);
+	    save_char = *tail;
+	    *tail = NUL;
+	    t = concat_fnames(fname, dname + 2, TRUE);
+	    *tail = save_char;
+	    if (t == NULL)	    // out of memory
+		retval = NULL;
 	    else
 	    {
-		int	    save_char;
-		string_T    tmp;
-
-		save_char = *tail.string;
-		*tail.string = NUL;
-		concat_fnames(fname, (size_t)(tail.string - fname),
-		    dname + 2, dname_len - 2, TRUE, &tmp);
-		*tail.string = save_char;
-		if (tmp.string == NULL)	    // out of memory
-		    retval.string = NULL;
-		else
-		{
-		    concat_fnames(tmp.string, tmp.length,
-			tail.string, tail.length, TRUE, &retval);
-		    vim_free(tmp.string);
-		}
+		retval = concat_fnames(t, tail, TRUE);
+		vim_free(t);
 	    }
 	}
-	else
-	    concat_fnames(dname, dname_len, tail.string, tail.length,
-		TRUE, &retval);
     }
+    else
+	retval = concat_fnames(dname, tail, TRUE);
 
 #ifdef MSWIN
-    if (retval.string != NULL)
-    {
-	char_u	*t;
-
-	for (t = gettail(retval.string); *t != NUL; MB_PTR_ADV(t))
+    if (retval != NULL)
+	for (t = gettail(retval); *t != NUL; MB_PTR_ADV(t))
 	    if (*t == ':')
 		*t = '%';
-    }
 #endif
 
-    return retval.string;
+    return retval;
 }
 
 /*
@@ -5120,7 +4966,7 @@ findswapname(
 		    vim_free(fname2);
 		    if (same)
 		    {
-			buf->b_shortname = true;
+			buf->b_shortname = TRUE;
 			vim_free(fname);
 			fname = makeswapname(buf_fname, buf->b_ffname,
 							       buf, dir_name);
@@ -5190,7 +5036,7 @@ findswapname(
 		fname[n - 1] = 'p';
 		if (r >= 0)		    // "file.swx" seems to exist
 		{
-		    buf->b_shortname = true;
+		    buf->b_shortname = TRUE;
 		    vim_free(fname);
 		    fname = makeswapname(buf_fname, buf->b_ffname,
 							       buf, dir_name);
@@ -5344,32 +5190,24 @@ findswapname(
 		    if (swap_exists_action != SEA_NONE
 						  && choice == SEA_CHOICE_NONE)
 		    {
-			string_T    prefix = {(char_u *)_("Swap file \""), 0};
-			string_T    suffix = {(char_u *)_("\" already exists!"), 0};
-			size_t	    message_size;
-			string_T    message;
-			char_u	    *tofree;
-			int	    dialog_result;
+			char_u	*name;
+			int	dialog_result;
 
-			prefix.length = STRLEN(prefix.string);
-			suffix.length = STRLEN(suffix.string);
-			message_size = prefix.length
-				+ STRLEN(fname)
-				+ suffix.length + 5;
-			message.string = tofree = alloc(message_size);
-			if (message.string != NULL)
+			name = alloc(STRLEN(fname)
+				+ STRLEN(_("Swap file \""))
+				+ STRLEN(_("\" already exists!")) + 5);
+			if (name != NULL)
 			{
-			    STRCPY(message.string, prefix.string);
-			    message.length = prefix.length;
-			    message.length += home_replace(NULL, fname,
-				message.string + message.length, (int)(message_size - message.length), TRUE);
-			    STRCPY(message.string + message.length, suffix.string);
+			    STRCPY(name, _("Swap file \""));
+			    home_replace(NULL, fname, name + STRLEN(name),
+								  1000, TRUE);
+			    STRCAT(name, _("\" already exists!"));
 			}
-			else
-			    message.string = (char_u *)_("Swap file already exists!");
 			dialog_result = do_dialog(VIM_WARNING,
 				    (char_u *)_("VIM - ATTENTION"),
-				    message.string,
+				    name == NULL
+					?  (char_u *)_("Swap file already exists!")
+					: name,
 # ifdef HAVE_PROCESS_STILL_RUNNING
 				    process_still_running
 					? (char_u *)_("&Open Read-Only\n&Edit anyway\n&Recover\n&Quit\n&Abort") :
@@ -5382,7 +5220,7 @@ findswapname(
 			    dialog_result++;
 # endif
 			choice = dialog_result;
-			vim_free(tofree);
+			vim_free(name);
 
 			// pretend screen didn't scroll, need redraw anyway
 			msg_scrolled = 0;
@@ -5637,7 +5475,7 @@ ml_setflags(buf_T *buf)
     }
 }
 
-#if defined(FEAT_CRYPT)
+#if defined(FEAT_CRYPT) || defined(PROTO)
 /*
  * If "data" points to a data block encrypt the text in it and return a copy
  * in allocated memory.  Return NULL when out of memory.
@@ -5666,10 +5504,7 @@ ml_encrypt_data(
 
     new_data = alloc(size);
     if (new_data == NULL)
-    {
-	crypt_free_state(state);
 	return NULL;
-    }
     head_end = (char_u *)(&dp->db_index[dp->db_line_count]);
     text_start = (char_u *)dp + dp->db_txt_start;
     text_len = size - dp->db_txt_start;
@@ -5788,10 +5623,10 @@ ml_crypt_prepare(memfile_T *mfp, off_T offset, int reading)
 #endif
 
 
-#if defined(FEAT_BYTEOFF)
+#if defined(FEAT_BYTEOFF) || defined(PROTO)
 
-# define MLCS_MAXL 800	// max no of lines in chunk
-# define MLCS_MINL 400   // should be half of MLCS_MAXL
+#define MLCS_MAXL 800	// max no of lines in chunk
+#define MLCS_MINL 400   // should be half of MLCS_MAXL
 
 /*
  * Keep information for finding byte offset of a line, updtype may be one of:
@@ -5934,7 +5769,7 @@ ml_updatechunk(
 		    end_idx = count - 1;
 		    linecnt += rest;
 		}
-# ifdef FEAT_PROP_POPUP
+#ifdef FEAT_PROP_POPUP
 		if (buf->b_has_textprop)
 		{
 		    int i;
@@ -5947,7 +5782,7 @@ ml_updatechunk(
 				      + (dp->db_index[i] & DB_INDEX_MASK)) + 1;
 		}
 		else
-# endif
+#endif
 		{
 		    if (idx == 0) // first line in block, text at the end
 			text_end = dp->db_txt_end;
@@ -6107,9 +5942,9 @@ ml_find_line_or_offset(buf_T *buf, linenr_T lnum, long *offp)
 
     while ((lnum != 0 && curline < lnum) || (offset != 0 && size < offset))
     {
-# ifdef FEAT_PROP_POPUP
+#ifdef FEAT_PROP_POPUP
 	size_t textprop_total = 0;
-# endif
+#endif
 
 	if (curline > buf->b_ml.ml_line_count
 		|| (hp = ml_find_line(buf, curline, ML_FIND)) == NULL)
@@ -6135,7 +5970,7 @@ ml_find_line_or_offset(buf_T *buf, linenr_T lnum, long *offp)
 	    extra = 0;
 	    for (;;)
 	    {
-# ifdef FEAT_PROP_POPUP
+#ifdef FEAT_PROP_POPUP
 		size_t textprop_size = 0;
 
 		if (buf->b_has_textprop)
@@ -6148,20 +5983,20 @@ ml_find_line_or_offset(buf_T *buf, linenr_T lnum, long *offp)
 				  : ((dp->db_index[idx - 1]) & DB_INDEX_MASK));
 		    textprop_size = (l2 - l1) - (STRLEN(l1) + 1);
 		}
-# endif
+#endif
 		if (!(offset >= size
 			+ text_end - (int)((dp->db_index[idx]) & DB_INDEX_MASK)
-# ifdef FEAT_PROP_POPUP
+#ifdef FEAT_PROP_POPUP
 			- (long)(textprop_total + textprop_size)
-# endif
+#endif
 			+ ffdos))
 		    break;
 
 		if (ffdos)
 		    size++;
-# ifdef FEAT_PROP_POPUP
+#ifdef FEAT_PROP_POPUP
 		textprop_total += textprop_size;
-# endif
+#endif
 		if (idx == count - 1)
 		{
 		    extra = 1;
@@ -6170,7 +6005,7 @@ ml_find_line_or_offset(buf_T *buf, linenr_T lnum, long *offp)
 		idx++;
 	    }
 	}
-# ifdef FEAT_PROP_POPUP
+#ifdef FEAT_PROP_POPUP
 	if (buf->b_has_textprop && lnum != 0)
 	{
 	    int i;
@@ -6185,11 +6020,11 @@ ml_find_line_or_offset(buf_T *buf, linenr_T lnum, long *offp)
 	    }
 	}
 	else
-# endif
+#endif
 	    len = text_end - ((dp->db_index[idx]) & DB_INDEX_MASK)
-# ifdef FEAT_PROP_POPUP
+#ifdef FEAT_PROP_POPUP
 				- (long)textprop_total
-# endif
+#endif
 				;
 	size += len;
 	if (offset != 0 && size >= offset)
@@ -6201,9 +6036,9 @@ ml_find_line_or_offset(buf_T *buf, linenr_T lnum, long *offp)
 	    else
 		*offp = offset - size + len
 		     - (text_end - ((dp->db_index[idx - 1]) & DB_INDEX_MASK))
-# ifdef FEAT_PROP_POPUP
+#ifdef FEAT_PROP_POPUP
 		     + (long)textprop_total
-# endif
+#endif
 		     ;
 	    curline += idx - start_idx + extra;
 	    if (curline > buf->b_ml.ml_line_count)
@@ -6254,7 +6089,7 @@ goto_byte(long cnt)
 	curwin->w_cursor.lnum = lnum;
 	curwin->w_cursor.col = (colnr_T)boff;
 	curwin->w_cursor.coladd = 0;
-	curwin->w_set_curswant = true;
+	curwin->w_set_curswant = TRUE;
     }
     check_cursor();
 

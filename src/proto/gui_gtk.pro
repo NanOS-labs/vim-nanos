@@ -21,5 +21,4 @@ void gui_make_popup(char_u *path_name, int mouse_pos);
 void gui_mch_find_dialog(exarg_T *eap);
 void gui_mch_replace_dialog(exarg_T *eap);
 void ex_helpfind(exarg_T *eap);
-void gui_mch_set_fullscreen(int flag);
 /* vim: set ft=c : */

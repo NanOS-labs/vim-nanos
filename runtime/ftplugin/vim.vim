@@ -1,12 +1,8 @@
 " Vim filetype plugin
-" Language:          Vim
-" Maintainer:        Doug Kearns <dougkearns@gmail.com>
-" Former Maintainer: Bram Moolenaar <Bram@vim.org>
-" Contributors:      Riley Bruins <ribru17@gmail.com> ('commentstring')
-"                    @Konfekt
-"                    @tpope (s:Help())
-"                    @lacygoill
-" Last Change:       2026 May 31
+" Language:	Vim
+" Maintainer:	The Vim Project <https://github.com/vim/vim>
+" Last Change:	2023 Aug 10
+" Former Maintainer:	Bram Moolenaar <Bram@vim.org>
 
 " Only do this when not done yet for this buffer
 if exists("b:did_ftplugin")
@@ -21,24 +17,20 @@ set cpo&vim
 
 if !exists('*VimFtpluginUndo')
   func VimFtpluginUndo()
-    setl fo< isk< com< tw< commentstring< include< define< keywordprg< omnifunc< path<
-    sil! delc -buffer VimKeywordPrg
+    setl fo< isk< com< tw< commentstring< include< define<
     if exists('b:did_add_maps')
       silent! nunmap <buffer> [[
-      silent! xunmap <buffer> [[
+      silent! vunmap <buffer> [[
       silent! nunmap <buffer> ]]
-      silent! xunmap <buffer> ]]
+      silent! vunmap <buffer> ]]
       silent! nunmap <buffer> []
-      silent! xunmap <buffer> []
+      silent! vunmap <buffer> []
       silent! nunmap <buffer> ][
-      silent! xunmap <buffer> ][
+      silent! vunmap <buffer> ][
       silent! nunmap <buffer> ]"
-      silent! xunmap <buffer> ]"
+      silent! vunmap <buffer> ]"
       silent! nunmap <buffer> ["
-      silent! xunmap <buffer> ["
-      silent! nunmap <buffer> gf
-      silent! nunmap <buffer> <C-W>f
-      silent! nunmap <buffer> <C-W>gf
+      silent! vunmap <buffer> ["
     endif
     unlet! b:match_ignorecase b:match_words b:match_skip b:did_add_maps
   endfunc
@@ -55,67 +47,18 @@ setlocal fo-=t fo+=croql
 setlocal isk+=#
 
 " Use :help to lookup the keyword under the cursor with K.
-" Distinguish between commands, options and functions.
-if !exists("*" .. expand("<SID>") .. "Help")
-  function s:Help(topic) abort
-    let topic = a:topic
-
-    " keyword is not necessarily under the cursor, see :help K
-    let line = getline('.')
-    let i = match(line, '\V' .. escape(topic, '\'), col('.') - len(topic))
-    let pre = strpart(line, 0, i)
-    let post = strpart(line, i + len(topic))
-
-    " local/global option vars
-    if topic =~# '[lg]' && pre ==# '&' && post =~# ':\k\+'
-      let topic = matchstr(post, '\k\+')
-    endif
-
-    if get(g:, 'syntax_on', 0)
-      let syn = synIDattr(synID(line('.'), col('.'), 1), 'name')
-      if syn ==# 'vimFuncName'
-        return topic .. '()'
-      elseif syn ==# 'vimOption' || syn ==# 'vimOptionVarName'
-        return "'" .. topic .. "'"
-      elseif syn ==# 'vimUserCmdAttrKey'
-        return ':command-' .. topic
-      elseif syn ==# 'vimCommand'
-        return ':' .. topic
-      endif
-    endif
-
-    if stridx(post, '(') == 0
-      return topic .. '()'
-    elseif pre =~# '^\s*:\=$' || pre =~# '\%(\\\||\)\@<!|\s*:\=$'
-      return ':' .. topic
-    elseif pre =~# '\<v:$'
-      return 'v:' .. topic
-    elseif pre =~# '<$'
-      return '<' .. topic .. '>'
-    elseif pre =~# '\\$'
-      return '/\' .. topic
-    elseif topic ==# 'v' && post =~# ':\w\+'
-      return 'v' .. matchstr(post, ':\w\+')
-    elseif pre =~# '&\%([lg]:\)\=$'
-      return "'" .. topic .. "'"
-    else
-      return topic
-    endif
-  endfunction
-endif
-command! -buffer -nargs=1 VimKeywordPrg :exe 'help' s:Help(<q-args>)
-setlocal keywordprg=:VimKeywordPrg
+setlocal keywordprg=:help
 
 " Comments starts with # in Vim9 script.  We have to guess which one to use.
-if "\n" .. getline(1, 32)->join("\n") =~# '\n\s*vim9\%[script]\>'
-  setlocal commentstring=#\ %s
-  " Set 'comments' to format dashed lists in comments, for Vim9 script.
-  setlocal com=sO:#\ -,mO:#\ \ ,eO:##,:#\\\ ,:#
+if "\n" .. getline(1, 10)->join("\n") =~# '\n\s*vim9\%[script]\>'
+  setlocal commentstring=#%s
 else
   setlocal commentstring=\"%s
-  " Set 'comments' to format dashed lists in comments, for legacy Vim script.
-  setlocal com=sO:\"\ -,mO:\"\ \ ,eO:\"\",:\"\\\ ,:\"
 endif
+
+" Set 'comments' to format dashed lists in comments, both in Vim9 and legacy
+" script.
+setlocal com=sO:#\ -,mO:#\ \ ,eO:##,:#,sO:\"\ -,mO:\"\ \ ,eO:\"\",:\"
 
 " set 'include' to recognize import commands
 setlocal include=\\v^\\s*import\\s*(autoload)?
@@ -123,62 +66,29 @@ setlocal include=\\v^\\s*import\\s*(autoload)?
 " set 'define' to recognize export commands
 setlocal define=\\v^\\s*export\\s*(def\|const\|var\|final)
 
-if has("vim9script")
-  " set omnifunc completion
-  setlocal omnifunc=vimcomplete#Complete
-endif
-
 " Format comments to be up to 78 characters long
 if &tw == 0
   setlocal tw=78
 endif
-
-" set 'path' to common Vim directories
-setlocal path-=/usr/include
-setlocal path+=pack/**,runtime/**,autoload/**,colors/**,compiler/**,ftplugin/**,indent/**,keymap/**,macros/**,plugin/**,syntax/**,after/**
 
 if !exists("no_plugin_maps") && !exists("no_vim_maps")
   let b:did_add_maps = 1
 
   " Move around functions.
   nnoremap <silent><buffer> [[ m':call search('^\s*\(fu\%[nction]\\|\(export\s\+\)\?def\)\>', "bW")<CR>
-  xnoremap <silent><buffer> [[ m':<C-U>exe "normal! gv"<Bar>call search('^\s*\(fu\%[nction]\\|\(export\s\+\)\?def\)\>', "bW")<CR>
+  vnoremap <silent><buffer> [[ m':<C-U>exe "normal! gv"<Bar>call search('^\s*\(fu\%[nction]\\|\(export\s\+\)\?def\)\>', "bW")<CR>
   nnoremap <silent><buffer> ]] m':call search('^\s*\(fu\%[nction]\\|\(export\s\+\)\?def\)\>', "W")<CR>
-  xnoremap <silent><buffer> ]] m':<C-U>exe "normal! gv"<Bar>call search('^\s*\(fu\%[nction]\\|\(export\s\+\)\?def\)\>', "W")<CR>
+  vnoremap <silent><buffer> ]] m':<C-U>exe "normal! gv"<Bar>call search('^\s*\(fu\%[nction]\\|\(export\s\+\)\?def\)\>', "W")<CR>
   nnoremap <silent><buffer> [] m':call search('^\s*end\(f\%[unction]\\|\(export\s\+\)\?def\)\>', "bW")<CR>
-  xnoremap <silent><buffer> [] m':<C-U>exe "normal! gv"<Bar>call search('^\s*end\(f\%[unction]\\|\(export\s\+\)\?def\)\>', "bW")<CR>
+  vnoremap <silent><buffer> [] m':<C-U>exe "normal! gv"<Bar>call search('^\s*end\(f\%[unction]\\|\(export\s\+\)\?def\)\>', "bW")<CR>
   nnoremap <silent><buffer> ][ m':call search('^\s*end\(f\%[unction]\\|\(export\s\+\)\?def\)\>', "W")<CR>
-  xnoremap <silent><buffer> ][ m':<C-U>exe "normal! gv"<Bar>call search('^\s*end\(f\%[unction]\\|\(export\s\+\)\?def\)\>', "W")<CR>
+  vnoremap <silent><buffer> ][ m':<C-U>exe "normal! gv"<Bar>call search('^\s*end\(f\%[unction]\\|\(export\s\+\)\?def\)\>', "W")<CR>
 
   " Move around comments
   nnoremap <silent><buffer> ]" :call search('\%(^\s*".*\n\)\@<!\%(^\s*"\)', "W")<CR>
-  xnoremap <silent><buffer> ]" :<C-U>exe "normal! gv"<Bar>call search('\%(^\s*".*\n\)\@<!\%(^\s*"\)', "W")<CR>
+  vnoremap <silent><buffer> ]" :<C-U>exe "normal! gv"<Bar>call search('\%(^\s*".*\n\)\@<!\%(^\s*"\)', "W")<CR>
   nnoremap <silent><buffer> [" :call search('\%(^\s*".*\n\)\%(^\s*"\)\@!', "bW")<CR>
-  xnoremap <silent><buffer> [" :<C-U>exe "normal! gv"<Bar>call search('\%(^\s*".*\n\)\%(^\s*"\)\@!', "bW")<CR>
-
-  " Purpose: Handle :import, :colorscheme and  :packadd lines in a smarter way. {{{
-  "
-  " `:import` is followed by a filename or filepath.  Find it.
-  "
-  " `:packadd`  is  followed  by the  name  of  a  package,  which we  might  have
-  " configured in scripts under `~/.vim/plugin`.  Find it.
-  "
-  " ---
-  "
-  " We can't handle the `:import` lines simply by setting `'includeexpr'`, because
-  " the option would be ignored if:
-  "
-  "    - the name of the imported script is the same as the current one
-  "    - `'path'` includes the `.` item
-  "
-  " Indeed,  in that  case, Vim  finds the  current file,  and simply  reloads the
-  " buffer.
-  " }}}
-  " We use the `F` variants, instead of the `f` ones, because they're smarter.
-  " See $VIMRUNTIME/autoload/vimgoto.vim
-  nnoremap <silent><buffer> gf :<C-U>call vimgoto#Find('gF')<CR>
-  nnoremap <silent><buffer> <C-W>f :<C-U>call vimgoto#Find("\<lt>C-W>F")<CR>
-  nnoremap <silent><buffer> <C-W>gf :<C-U>call vimgoto#Find("\<lt>C-W>gF")<CR>
+  vnoremap <silent><buffer> [" :<C-U>exe "normal! gv"<Bar>call search('\%(^\s*".*\n\)\%(^\s*"\)\@!', "bW")<CR>
 endif
 
 " Let the matchit plugin know what items can be matched.
@@ -190,25 +100,23 @@ if exists("loaded_matchit")
   "   func name
   " require a parenthesis following, then there can be an "endfunc".
   let b:match_words =
-  \ '\<\%(fu\%[nction]\|def\)!\=\s\+\S\+\s*(:\%(\%(^\||\)\s*\)\@<=\<retu\%[rn]\>:\%(\%(^\||\)\s*\)\@<=\<\%(endf\%[unction]\|enddef\)\>,' ..
-  \ '\<\%(wh\%[ile]\|for\)\>:\%(\%(^\||\)\s*\)\@<=\<brea\%[k]\>:\%(\%(^\||\)\s*\)\@<=\<con\%[tinue]\>:\%(\%(^\||\)\s*\)\@<=\<end\%(w\%[hile]\|fo\%[r]\)\>,' ..
-  \ '\<if\>:\%(\%(^\||\)\s*\)\@<=\<el\%[seif]\>:\%(\%(^\||\)\s*\)\@<=\<en\%[dif]\>,' ..
-  \ '{:},' ..
-  \ '\<try\>:\%(\%(^\||\)\s*\)\@<=\<cat\%[ch]\>:\%(\%(^\||\)\s*\)\@<=\<fina\%[lly]\>:\%(\%(^\||\)\s*\)\@<=\<endt\%[ry]\>,' ..
-  \ '\<aug\%[roup]\s\+\%(END\>\)\@!\S:\<aug\%[roup]\s\+END\>,' ..
-  \ '\<class\>:\<endclass\>,' ..
-  \ '\<interface\>:\<endinterface\>,' ..
-  \ '\<enum\>:\<endenum\>,' ..
-  "\ :let-heredoc
-  \ '\%(=<<\s\+\%(\%(trim\s\+eval\|eval\s\+trim\|trim\|eval\)\s\+\)\=\)\@16<=\(\l\@!\S\+\):\%(^\s*\)\@<=\1$'
+	\ '\<\%(fu\%[nction]\|def\)!\=\s\+\S\+\s*(:\%(\%(^\||\)\s*\)\@<=\<retu\%[rn]\>:\%(\%(^\||\)\s*\)\@<=\<\%(endf\%[unction]\|enddef\)\>,' ..
+	\ '\<\%(wh\%[ile]\|for\)\>:\%(\%(^\||\)\s*\)\@<=\<brea\%[k]\>:\%(\%(^\||\)\s*\)\@<=\<con\%[tinue]\>:\%(\%(^\||\)\s*\)\@<=\<end\%(w\%[hile]\|fo\%[r]\)\>,' ..
+	\ '\<if\>:\%(\%(^\||\)\s*\)\@<=\<el\%[seif]\>:\%(\%(^\||\)\s*\)\@<=\<en\%[dif]\>,' ..
+	\ '{:},' ..
+	\ '\<try\>:\%(\%(^\||\)\s*\)\@<=\<cat\%[ch]\>:\%(\%(^\||\)\s*\)\@<=\<fina\%[lly]\>:\%(\%(^\||\)\s*\)\@<=\<endt\%[ry]\>,' ..
+	\ '\<aug\%[roup]\s\+\%(END\>\)\@!\S:\<aug\%[roup]\s\+END\>,' ..
+	\ '\<class\>:\<endclass\>,' ..
+	\ '\<inte\%[rface]\>:\<endinterface\>,' ..
+	\ '\<enu\%[m]\>:\<endenum\>,'
 
   " Ignore syntax region commands and settings, any 'en*' would clobber
   " if-endif.
   " - set spl=de,en
   " - au! FileType javascript syntax region foldBraces start=/{/ end=/}/ …
-  " Also ignore heredoc content and dictionary keys (vimVar).
+  " Also ignore here-doc and dictionary keys (vimVar).
   let b:match_skip = 'synIDattr(synID(line("."), col("."), 1), "name")
-                    \ =~? "comment\\|string\\|vimSynReg\\|vimSet\\|vimLetHeredoc$\\|vimVar"'
+	\ =~? "comment\\|string\\|vimSynReg\\|vimSet\\|vimLetHereDoc\\|vimVar"'
 endif
 
 let &cpo = s:cpo_save
@@ -216,5 +124,3 @@ unlet s:cpo_save
 
 " removed this, because 'cpoptions' is a global option.
 " setlocal cpo+=M		" makes \%( match \)
-"
-" vim: sw=2 et

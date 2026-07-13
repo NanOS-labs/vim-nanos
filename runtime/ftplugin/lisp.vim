@@ -5,7 +5,6 @@
 " Original author:    Dorai Sitaram <ds26@gte.com>
 " Original URL:		 http://www.ccs.neu.edu/~dorai/vimplugins/vimplugins.html
 " Last Change:   Mar 10, 2021
-"                May 23, 2024 by Riley Bruins <ribru17@gmail.com> ('commentstring')
 
 " Only do this when not done yet for this buffer
 if exists("b:did_ftplugin")
@@ -20,6 +19,6 @@ setl define=^\\s*(def\\k*
 setl formatoptions-=t
 setl iskeyword+=+,-,*,/,%,<,=,>,:,$,?,!,@-@,94
 setl lisp
-setl commentstring=;\ %s
+setl commentstring=;%s
 
 let b:undo_ftplugin = "setlocal comments< define< formatoptions< iskeyword< lisp< commentstring<"

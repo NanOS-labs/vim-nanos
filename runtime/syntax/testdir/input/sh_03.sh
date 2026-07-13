@@ -31,7 +31,3 @@ Variable="${VariableB:-${VariableC:-eng}}"  # :- is ksh and bash
 Variable=${VariableB:-${VariableC:-${VariableD:-${VariableE:=eng}}}}
        :        ${VariableB:=${VariableC:-${VariableD:-${VariableE:=eng}}}}
 
-# special variables
-echo "${!#}"		# last positional argument
-echo "${!@}"		# deref
-echo "${#PATH}"		# length

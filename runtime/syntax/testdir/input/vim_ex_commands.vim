@@ -1,7 +1,8 @@
 " Ex commands
 
-
 " START NOT MATCHED
+:@
+:@@
 :Next
 :Print
 :X
@@ -10,9 +11,7 @@
 :help
  :help
 : help
- : help # FIXME
-
-:@
+ : help
 
 :append
     text
@@ -97,6 +96,7 @@
 :checkpath
 :checktime
 :chistory
+:class
 :clast
 :clearjumps
 :clist
@@ -170,6 +170,7 @@
 :else
 :elseif
 :emenu
+:endclass
 :enddef
 :endif
 :endfor
@@ -181,6 +182,7 @@
 :ex
 :execute
 :exit
+:export
 :exusage
 :file
 :files
@@ -197,7 +199,7 @@
 :folddoopen
 :folddoclosed
 :foldopen
-:for foo in bar | endfor
+:for
 :function
 :global/.../
 :goto
@@ -288,7 +290,7 @@
 :lnewer
 :lnfile
 :lnoremap
-" :loadkeymap " disabled - runs until EOF
+:loadkeymap
 :loadview
 :lockmarks
 :lockvar
@@ -309,7 +311,8 @@
 :move
 :mark
 :make
-:map
+" requires trailing whitespace to distinguish from map()
+:map 
 :mapclear
 :marks
 :match
@@ -382,6 +385,7 @@
 :ptprevious
 :ptrewind
 :ptselect
+:public
 :put
 :pwd
 :py3
@@ -476,6 +480,7 @@
 :startinsert
 :startgreplace
 :startreplace
+:static
 :stopinsert
 :stjump
 :stselect
@@ -539,7 +544,6 @@
 :unabbreviate
 :unabbreviate
 :unhide
-:uniq
 :unlet
 :unlockvar
 :unmap
@@ -547,10 +551,12 @@
 :unsilent
 :update
 :vglobal/.../
+:var
 :version
 :verbose
 :vertical
 :vim9cmd
+:vim9script
 :vimgrep
 :vimgrepadd
 :visual
@@ -681,6 +687,7 @@ call Foo() | chdir
 call Foo() | checkpath
 call Foo() | checktime
 call Foo() | chistory
+call Foo() | class
 call Foo() | clast
 call Foo() | clearjumps
 call Foo() | clist
@@ -754,6 +761,7 @@ call Foo() | echowindow
 call Foo() | else
 call Foo() | elseif
 call Foo() | emenu
+call Foo() | endclass
 call Foo() | enddef
 call Foo() | endif
 call Foo() | endfor
@@ -765,6 +773,7 @@ call Foo() | eval
 call Foo() | ex
 call Foo() | execute
 call Foo() | exit
+call Foo() | export
 call Foo() | exusage
 call Foo() | file
 call Foo() | files
@@ -781,7 +790,7 @@ call Foo() | foldclose
 call Foo() | folddoopen
 call Foo() | folddoclosed
 call Foo() | foldopen
-call Foo() | for foo in bar | endfor
+call Foo() | for
 call Foo() | function
 call Foo() | global/.../
 call Foo() | goto
@@ -873,7 +882,7 @@ call Foo() | lnext
 call Foo() | lnewer
 call Foo() | lnfile
 call Foo() | lnoremap
-" call Foo() | loadkeymap " disabled - runs until EOF
+call Foo() | loadkeymap
 call Foo() | loadview
 call Foo() | lockmarks
 call Foo() | lockvar
@@ -894,7 +903,8 @@ call Foo() | lwindow
 call Foo() | move
 call Foo() | mark
 call Foo() | make
-call Foo() | map
+" requires trailing whitespace to distinguish from map()
+call Foo() | map 
 call Foo() | mapclear
 call Foo() | marks
 call Foo() | match
@@ -967,6 +977,7 @@ call Foo() | ptnext
 call Foo() | ptprevious
 call Foo() | ptrewind
 call Foo() | ptselect
+call Foo() | public
 call Foo() | put
 call Foo() | pwd
 call Foo() | py3
@@ -1061,6 +1072,7 @@ call Foo() | stag
 call Foo() | startinsert
 call Foo() | startgreplace
 call Foo() | startreplace
+call Foo() | static
 call Foo() | stopinsert
 call Foo() | stjump
 call Foo() | stselect
@@ -1124,7 +1136,6 @@ call Foo() | undolist
 call Foo() | unabbreviate
 call Foo() | unabbreviate
 call Foo() | unhide
-call Foo() | uniq
 call Foo() | unlet
 call Foo() | unlockvar
 call Foo() | unmap
@@ -1132,10 +1143,12 @@ call Foo() | unmenu
 call Foo() | unsilent
 call Foo() | update
 call Foo() | vglobal/.../
+call Foo() | var
 call Foo() | version
 call Foo() | verbose
 call Foo() | vertical
 call Foo() | vim9cmd
+call Foo() | vim9script
 call Foo() | vimgrep
 call Foo() | vimgrepadd
 call Foo() | visual
@@ -1176,35 +1189,3 @@ call Foo() | xunmap
 call Foo() | xunmenu
 call Foo() | yank
 call Foo() | z
-
-
-" Vim9-script only
-
-:abstract
-:class
-:endclass
-:endinterface
-:endenum
-:enum
-:export
-:final
-:interface
-:public
-:static
-:type
-:var
-
-Foo() | abstract
-Foo() | class
-Foo() | endclass
-Foo() | endenum
-Foo() | endinterface
-Foo() | enum
-Foo() | export
-Foo() | final
-Foo() | interface
-Foo() | public
-Foo() | static
-Foo() | type
-Foo() | var
-

@@ -72,7 +72,6 @@ deprecated
 discontiguous
 div
 domain_error
-consistency_error
 duplicated_directives
 dynamic
 dynamic_declarations
@@ -145,7 +144,6 @@ min
 missing_directives
 mod
 mode
-mode_non_terminal
 modules
 multifile
 nl

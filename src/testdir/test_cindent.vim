@@ -132,7 +132,7 @@ def Test_cindent_func()
   bwipe!
 enddef
 
-def Test_cindent_01()
+def Test_cindent_1()
   new
   setl cindent ts=4 sw=4
   setl cino& sts&
@@ -1104,38 +1104,6 @@ def Test_cindent_01()
   baz();
   break;
   }
-  }
-
-  void foo() {
-  float a[5],
-  b;
-  }
-
-  void func() {
-  if (0)
-  do
-  if (0);
-  while (0);
-  else;
-  }
-
-  void func() {
-  if (0)
-  do
-  if (0)
-  do
-  if (0)
-  a();
-  while (0);
-  while (0);
-  else
-  a();
-  }
-
-  void func() {
-  /* aaaaaa
-  bbbbb:
-  ccccccc */
   }
 
   /* end of AUTO */
@@ -2115,38 +2083,6 @@ def Test_cindent_01()
   	}
   }
 
-  void foo() {
-  	float a[5],
-  		  b;
-  }
-
-  void func() {
-  	if (0)
-  		do
-  			if (0);
-  		while (0);
-  	else;
-  }
-
-  void func() {
-  	if (0)
-  		do
-  			if (0)
-  				do
-  					if (0)
-  						a();
-  				while (0);
-  		while (0);
-  	else
-  		a();
-  }
-
-  void func() {
-  	/* aaaaaa
-  	   bbbbb:
-  	   ccccccc */
-  }
-
   /* end of AUTO */
 
   [CODE]
@@ -2156,7 +2092,7 @@ def Test_cindent_01()
   bwipe!
 enddef
 
-def Test_cindent_02()
+def Test_cindent_2()
   new
   setl cindent ts=4 sw=4
   setl tw=0 noai fo=croq
@@ -2199,7 +2135,7 @@ def Test_cindent_02()
   bwipe!
 enddef
 
-def Test_cindent_03()
+def Test_cindent_3()
   new
   setl nocindent ts=4 sw=4
 
@@ -2260,7 +2196,7 @@ def Test_cindent_03()
   bwipe!
 enddef
 
-def Test_cindent_04()
+def Test_cindent_4()
   new
   setl cindent ts=4 sw=4
 
@@ -2291,7 +2227,7 @@ def Test_cindent_04()
   bwipe!
 enddef
 
-def Test_cindent_05()
+def Test_cindent_5()
   new
   setl cindent ts=4 sw=4
   setl cino=}4
@@ -2342,7 +2278,7 @@ def Test_cindent_05()
   bwipe!
 enddef
 
-def Test_cindent_06()
+def Test_cindent_6()
   new
   setl cindent ts=4 sw=4
   setl cino=(0,)20
@@ -2406,7 +2342,7 @@ def Test_cindent_06()
   bwipe!
 enddef
 
-def Test_cindent_07()
+def Test_cindent_7()
   new
   setl cindent ts=4 sw=4
   setl cino=es,n0s
@@ -2447,7 +2383,7 @@ def Test_cindent_07()
   bwipe!
 enddef
 
-def Test_cindent_08()
+def Test_cindent_8()
   new
   setl cindent ts=4 sw=4
   setl cino=
@@ -2496,7 +2432,7 @@ def Test_cindent_08()
   bwipe!
 enddef
 
-def Test_cindent_09()
+def Test_cindent_9()
   new
   setl cindent ts=4 sw=4
 
@@ -5524,117 +5460,6 @@ def Test_find_brace_backwards()
   norm V{=
   assert_equal(['/*', '   0{', '//'], getline(1, 3))
   bwipe!
-enddef
-
-" Brackets inside comments must not affect C indent calculation (FM_SKIPCOMM)
-def Test_cindent_comment_brackets()
-  # stray } in inline block comment must not confuse enclosing-brace search
-  new
-  setl cindent sw=4
-  var code =<< trim [CODE]
-  int foo() {
-      /* } */
-      int bar;
-  }
-  [CODE]
-  setline(1, code)
-  cursor(3, 1)
-  normal ==
-  assert_equal('    int bar;', getline(3))
-  bwipe!
-
-  # stray } in // line comment: same
-  new
-  setl cindent sw=4
-  var code2 =<< trim [CODE]
-  int foo() {
-      // }
-      int bar;
-  }
-  [CODE]
-  setline(1, code2)
-  cursor(3, 1)
-  normal ==
-  assert_equal('    int bar;', getline(3))
-  bwipe!
-
-  # stray } on continuation line inside multi-line block comment
-  new
-  setl cindent sw=4
-  var code3 =<< trim [CODE]
-  int foo() {
-      /*
-         }
-      */
-      int bar;
-  }
-  [CODE]
-  setline(1, code3)
-  cursor(5, 1)
-  normal ==
-  assert_equal('    int bar;', getline(5))
-  bwipe!
-
-  # { in inline block comment must not be treated as enclosing brace
-  new
-  setl cindent sw=4
-  var code4 =<< trim [CODE]
-  int foo() {
-      /* { */
-      int bar;
-  }
-  [CODE]
-  setline(1, code4)
-  cursor(3, 1)
-  normal ==
-  assert_equal('    int bar;', getline(3))
-  bwipe!
-
-  # ) in inline block comment must not be treated as enclosing brace
-  new
-  setl cindent sw=4
-  var code5 =<< trim [CODE]
-  some_func(arg1,
-      /* ) */ arg2,
-      arg3);
-  [CODE]
-  setline(1, code5)
-  cursor(3, 1)
-  normal ==
-  assert_equal('    arg3);', getline(3))
-  bwipe!
-
-  # stray } in a // line comment inside an aggregate (enum/struct) whose
-  # opening brace is at the end of the line must not affect the next member
-  new
-  setl cindent sw=4
-  var code6 =<< trim [CODE]
-  typedef enum {
-      ND_BLOCK,  // { ... }
-      ND_FUNCALL,
-  } NodeKind;
-  [CODE]
-  setline(1, code6)
-  cursor(3, 1)
-  normal ==
-  assert_equal('    ND_FUNCALL,', getline(3))
-  bwipe!
-
-  # same, a struct member with a trailing // } comment
-  new
-  setl cindent sw=4
-  var code7 =<< trim [CODE]
-  struct S {
-      int a;  // }
-      int b;
-  };
-  [CODE]
-  setline(1, code7)
-  cursor(3, 1)
-  normal ==
-  assert_equal('    int b;', getline(3))
-  bwipe!
-
 enddef
 
 
