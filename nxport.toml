@@ -1,6 +1,6 @@
 name = "vim"
 # Vim (the editor) — unmodified upstream, built for NanOS via the nanos-port driver. This is an
-# x86_64-ONLY port manifest: the NanOS `make vim` i686 branch copies the hand-built 32-bit .nxe
+# x86_64 port manifest (the retired i686 flow copied a hand-built 32-bit .nxe instead)
 # and never invokes nanos-port, so everything here targets x86_64-nanos.
 #
 # Terminal stack: vim links the low-level terminfo library libtinfo.a (--with-tlib=tinfo), which

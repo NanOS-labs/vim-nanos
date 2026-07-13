@@ -6,7 +6,7 @@
 #     (appended AFTER nanos-port's own --cache-file, and the last one wins), so the driver's
 #     nxport.cache is ignored — vim only ever reads src/auto/config.cache. That file in the source
 #     tree IS the committed i686 vim cross-cache (all the vim_cv_*/vi_cv_*/cf_cv_* AC_RUN answers +
-#     the header/func probes). We reuse it verbatim, only: drop the i686-nanos CC/CPP/AWK + env/alias
+#     the header/func probes). We reuse it verbatim, only: drop the x86_64-nanos CC/CPP/AWK + env/alias
 #     pins so x86_64-nanos-gcc is auto-detected from --host, and override the 4 arch-dependent values
 #     (long/pointer/size_t = 8 for LP64, uname_m = x86_64). Everything else is arch-independent
 #     (both arches link the same NanOS libc), so it carries over unchanged.
